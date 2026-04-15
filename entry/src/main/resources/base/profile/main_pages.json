@@ -1,0 +1,21 @@
+{
+  "src": [
+    "pages/auth/LoginPage",
+    "pages/dashboard/DashboardPage",
+    "pages/dashboard/SupportWindow",
+    "pages/device/DevicePage",
+    "pages/measure/MeasurePage",
+    "pages/measure/MeasureRecordsPage",
+    "pages/calibration/CalibrationPage",
+    "pages/clamp/ClampPage",
+    "pages/clamp/KeyCompensationPage",
+    "pages/rotor/RotorListPage",
+    "pages/rotor/RotorDetailPage",
+    "pages/analysis/VibAnalysisPage",
+    "pages/analysis/DataAnalysisPage",
+    "pages/position/PositionPage",
+    "pages/step/StepExecutionPage",
+    "pages/records/ReportPage",
+    "pages/settings/SettingsPage"
+  ]
+}
