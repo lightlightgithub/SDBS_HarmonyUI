@@ -2,7 +2,7 @@
   "src": [
     "pages/auth/LoginPage",
     "pages/dashboard/DashboardPage",
-    "pages/dashboard/SupportWindow",
+    "pages/rotor/SupportWindow",
     "pages/device/DevicePage",
     "pages/measure/MeasurePage",
     "pages/measure/MeasureRecordsPage",

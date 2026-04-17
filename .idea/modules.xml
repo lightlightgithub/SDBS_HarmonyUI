@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/SDBS_HarmonyUI.iml" filepath="$PROJECT_DIR$/.idea/modules/SDBS_HarmonyUI.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/entry.iml" filepath="$PROJECT_DIR$/.idea/modules/entry.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/hvigorfilets.iml" filepath="$PROJECT_DIR$/.idea/modules/hvigorfilets.iml" />
     </modules>
   </component>
 </project>

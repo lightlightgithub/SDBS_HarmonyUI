@@ -1,9 +1,14 @@
-import promptAction from '@ohos.promptAction';
-import { SupportConfig, MeasurementMode, Margin, SelectOption } from './RotorSupportConfig';
-
+import { promptAction } from '@kit.ArkUI';
+import { SupportConfig, MeasurementMode, Margin } from './RotorSupportConfig';
+import { PersistentConfig, SelectOption } from '../../models/global';
+import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
+import router from '@ohos.router';
 @Component
-export struct RotorSettingsPanel {
-  @State private zcfs: number = 2;
+export struct RotorSettingsPage {
+  @Watch('onStoredSupportModeChange')
+  @StorageLink('rotorSupportSelectedMode') private storedSupportMode: number = 1; //全局存储找不到默认是支撑方式1
+  @Watch('onStoredSupportJsmsChange')
+  @StorageLink('rotorSupportJsms') private storedSupportJsms: number = 0;
   @State private currentMode: MeasurementMode | null = null;
   @State private currentModeImage: string = 'image/rotor/rtsetmodel1.png';
   @State private displayWidth: number = 0;
@@ -25,21 +30,6 @@ export struct RotorSettingsPanel {
   @State private r1Pos: Margin = { left: 0, top: 0 };
   @State private r2Pos: Margin = { left: 0, top: 0 };
   @State private speedPos: Margin = { left: 0, top: 0 };
-  @State private rotorA: string = '21';
-  @State private rotorB: string = '22';
-  @State private rotorC: string = '10';
-  @State private rotorR1: string = '30';
-  @State private rotorR2: string = '30';
-  @State private rotorSpeed: string = '700';
-  @State private rotorName: string = 'jP1';
-  @State private balanceMode: string = '硬支撑';
-  @State private selectRotor: string = 'jP1';
-  @State private unit: string = 'mm';
-  @State private measureMode: string = '双面动平衡';
-  @State private allowUnit: string = 'g';
-  @State private plane1Allow: string = '4';
-  @State private staticAllow: string = '22';
-  @State private plane2Allow: string = '4';
 
   private readonly CANVAS_EXTEND: number = 90;
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -48,7 +38,7 @@ export struct RotorSettingsPanel {
   private mainCanvasReady: boolean = false;
   private inCanvasReady: boolean = false;
   private arrowCanvasReady: boolean = false;
-
+  @State private vm: RotorViewModel = new RotorViewModel();
   private balanceModeOptions: SelectOption[] = [{ value: '硬支撑' }, { value: '软支撑' }];
   private unitOptions: SelectOption[] = [{ value: 'mm' }, { value: 'cm' }, { value: 'm' }, { value: 'inch' }, { value: 'foot' }];
   private measureModeOptions: SelectOption[] = [
@@ -60,37 +50,39 @@ export struct RotorSettingsPanel {
   ];
   private allowUnitOptions: SelectOption[] = [{ value: 'g' }, { value: 'mg' }, { value: 'g·mm' }, { value: 'g·cm' }];
   private rotorOptions: SelectOption[] = [{ value: 'jP1' }, { value: 'jP2' }, { value: 'jP3' }];
-  private supportModeOptions: SelectOption[] = [
-    { value: '模式1' },
-    { value: '模式2' },
-    { value: '模式3' },
-    { value: '模式4' },
-    { value: '模式5' },
-    { value: '模式6' },
-    { value: '模式7' },
-    { value: '模式8' },
-    { value: '模式9' },
-    { value: '模式10' },
-    { value: '模式11' }
-  ];
 
   aboutToAppear(): void {
+    this.storedSupportMode = this.vm.zcfs ;
+    this.storedSupportJsms = this.vm.Jsms;
     SupportConfig.init();
-    this.loadMode(this.zcfs);
+    this.loadMode(this.vm.zcfs);
+  }
+
+  private onStoredSupportModeChange(): void {
+    if (this.storedSupportMode >= 1 && this.storedSupportMode <= 11 && this.storedSupportMode !== this.vm.zcfs) {
+      this.vm.zcfs = this.storedSupportMode; //  写 vm
+      this.loadMode(this.vm.zcfs); //  从 vm 读
+    }
+  }
+
+  private onStoredSupportJsmsChange(): void {
+    const nextBalanceMode = this.storedSupportJsms === 0 ? '硬支撑' : '软支撑';
+    if (this.vm.balanceMode !== nextBalanceMode) {
+      this.vm.balanceMode = nextBalanceMode; // 写 vm
+      this.syncSupportModeForBalanceMode();
+    }
   }
 
   private loadMode(modeId: number): void {
     const mode = SupportConfig.AllModes[modeId];
-    if (mode === undefined) {
-      return;
-    }
+    if (!mode) return;
     let width = 638;
     let height = 305;
     if (modeId === 7 || modeId === 8) {
       width = 669;
     }
     mode.setImageSize(width, height);
-    this.zcfs = modeId;
+    this.vm.zcfs = modeId;
     this.currentMode = mode;
     this.currentModeImage = `image/rotor/rtsetmodel${modeId}.png`;
     this.mainCanvasReady = false;
@@ -111,8 +103,10 @@ export struct RotorSettingsPanel {
       return;
     }
 
-    const scale = containerW / imgW;
-    const displayW = containerW;
+    const availableW = containerW;
+    const availableH = containerH;
+    const scale = Math.min(availableW / imgW, availableH / imgH);
+    const displayW = imgW * scale;
     const displayH = imgH * scale;
     const canvasTopExtend = 80;
     const canvasBottomExtend = 80;
@@ -214,22 +208,63 @@ export struct RotorSettingsPanel {
     ctx.restore();
   }
 
-  private cycleMode(): void {
-    const nextMode = this.zcfs >= 11 ? 1 : this.zcfs + 1;
-    this.loadMode(nextMode);
-    promptAction.showToast({ message: `支撑方式切换到模式${nextMode}`, duration: 1200 });
+  private getFilteredModes(): number[] {
+    const allModes: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    if (this.vm.balanceMode === '软支撑') {
+      return allModes.filter((modeId: number): boolean => ![2, 4, 5, 7, 8, 9, 10].includes(modeId));
+    }
+    return allModes;
+  }
+
+  private syncSupportModeForBalanceMode(): void {
+    const filteredModes = this.getFilteredModes();
+    if (filteredModes.length > 0) {
+      if (!filteredModes.includes(this.vm.zcfs)) { //  读 vm
+        this.vm.zcfs = filteredModes[0]; //  写 vm
+        this.loadMode(this.vm.zcfs);
+      }
+    }
+  }
+
+  private openSupportWindow(): void {
+    const filteredModes = this.getFilteredModes();
+    if (filteredModes.length === 0) {
+      promptAction.showToast({ message: '当前解算模式下无可选支撑方式', duration: 1200 });
+      return;
+    }
+    this.storedSupportMode = filteredModes.includes(this.vm.zcfs) ? this.vm.zcfs : filteredModes[0];
+    this.storedSupportJsms = this.vm.balanceMode === '硬支撑' ? 0 : 1;
+    router.pushUrl({
+      url: 'pages/dashboard/SupportWindow',
+      params: {
+        zcfs: this.storedSupportMode,
+        jsms: this.storedSupportJsms
+      }
+    }).catch(() => {
+      promptAction.showToast({ message: '页面跳转失败', duration: 2000 });
+    });
   }
 
   private saveSettings(): void {
-    promptAction.showToast({ message: '转子设置已保存', duration: 1200 });
+    this.vm.saveRotor().then(success => {
+      if (success) {
+        promptAction.showToast({ message: '保存成功' });
+      } else {
+        promptAction.showToast({ message: this.vm.errorMessage });
+        //promptAction.showToast({ message: '转子设置已保存', duration: 1200 });
+      }
+    });
   }
 
   private deleteRotor(): void {
-    promptAction.showToast({ message: '删除功能待接接口', duration: 1200 });
+    this.vm.deleteRotor().then(success => {
+      promptAction.showToast({ message: success ? '删除成功' : this.vm.errorMessage });
+    });
   }
 
   private addRotor(): void {
-    promptAction.showToast({ message: '新增功能待接接口', duration: 1200 });
+    this.vm.addRotor();
+    promptAction.showToast({ message: '请输入转子信息后保存' });
   }
 
   private openIndexDialog(): void {
@@ -246,12 +281,12 @@ export struct RotorSettingsPanel {
       Text(label)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#2f4f6a');
+        .fontColor('#333');
       if (options !== undefined && options.length > 0) {
         Select(options)
           .value(value)
-          .width(136)
-          .height(38)
+          .width(120)
+          .height(36)
           .backgroundColor('#ccebff')
           .border({ width: 0 })
           .borderRadius(8)
@@ -259,8 +294,8 @@ export struct RotorSettingsPanel {
           .onSelect((index: number, val: string): void => { onChange(val); });
       } else {
         TextInput({ text: value })
-          .width(136)
-          .height(38)
+          .width(120)
+          .height(36)
           .backgroundColor('#ccebff')
           .border({ width: 0 })
           .borderRadius(8)
@@ -272,11 +307,41 @@ export struct RotorSettingsPanel {
   }
 
   @Builder
+  private renderTriggerFormItem(label: string, value: string, onClick: () => void) {
+    Column({ space: 8 }) {
+      Text(label)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#333');
+      Button({ type: ButtonType.Normal }) {
+        Row() {
+          Text(value)
+            .fontSize(14)
+            .fontColor('#333');
+          Text('选择')
+            .fontSize(12)
+            .fontColor('#1181c7');
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.SpaceBetween);
+      }
+      .width(120)
+      .height(36)
+      .backgroundColor('#ccebff')
+      .border({ width: 0 })
+      .borderRadius(8)
+      .padding({ left: 10, right: 10 })
+      .onClick((): void => { onClick(); });
+    }
+    .alignItems(HorizontalAlign.Start);
+  }
+
+  @Builder
   private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
     if (pos.left < 900) {
       Column({ space: 2 }) {
         TextInput({ text: value })
-          .width(56)
+          .width(55)
           .height(34)
           .borderRadius(17)
           .backgroundColor('#ffffff')
@@ -286,7 +351,7 @@ export struct RotorSettingsPanel {
           .onChange((val: string): void => { onChange(val); });
         Text(label)
           .fontSize(13)
-          .fontColor('#2f4f6a');
+          .fontColor('#333');
       }
       .position({ x: pos.left - 30, y: pos.top - 25 })
       .zIndex(100);
@@ -298,59 +363,55 @@ export struct RotorSettingsPanel {
     Button({ type: ButtonType.Normal }) {
       Column({ space: 6 }) {
         Image($rawfile(iconPath))
-          .width(42)
-          .height(42)
+          .width(48)
+          .height(48)
           .objectFit(ImageFit.Contain);
         Text(text)
-          .fontSize(12)
-          .fontColor('#1181c7')
+          .fontSize(13)
+          .fontColor('#06c')
           .textAlign(TextAlign.Center);
       }
     }
-    .width(92)
-    .height(86)
-    .backgroundColor('#d7efff')
-    .borderRadius(10)
+    .width('100%')
+    .height('auto')
+    .backgroundColor('#ccebff')
+    .borderRadius(8)
     .onClick((): void => { onClick(); });
   }
 
   build() {
-    Row() {
+    Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Stretch }) {
       Column() {
         Row() {
           Column({ space: 20 }) {
-            this.renderFormItem('转子名称', this.rotorName, (v: string): void => { this.rotorName = v; });
-            this.renderFormItem('允许量单位', this.allowUnit, (v: string): void => { this.allowUnit = v; }, this.allowUnitOptions);
-            this.renderFormItem('静允许量', this.staticAllow, (v: string): void => { this.staticAllow = v; });
-            this.renderFormItem('平面一允许量', this.plane1Allow, (v: string): void => { this.plane1Allow = v; });
-            this.renderFormItem('平面二允许量', this.plane2Allow, (v: string): void => { this.plane2Allow = v; });
+            this.renderFormItem('转子名称', this.vm.rotorName, (v: string): void => { this.vm.rotorName = v; });
+            this.renderFormItem('允许量单位', this.vm.allowUnit, (v: string): void => { this.vm.allowUnit = v; }, this.allowUnitOptions);
+            this.renderFormItem('静允许量', this.vm.staticAllow, (v: string): void => { this.vm.staticAllow = v; });
+            this.renderFormItem('平面一允许量', this.vm.plane1Allow, (v: string): void => { this.vm.plane1Allow = v; });
+            this.renderFormItem('平面二允许量', this.vm.plane2Allow, (v: string): void => { this.vm.plane2Allow = v; });
           }
+          .width('50%')
           .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
 
           Column({ space: 20 }) {
-            this.renderFormItem('选择转子', this.selectRotor, (v: string): void => { this.selectRotor = v; }, this.rotorOptions);
-            this.renderFormItem('测量模式', this.measureMode, (v: string): void => { this.measureMode = v; }, this.measureModeOptions);
-            this.renderFormItem('解算模式', this.balanceMode, (v: string): void => { this.balanceMode = v; }, this.balanceModeOptions);
-            this.renderFormItem('尺寸单位', this.unit, (v: string): void => { this.unit = v; }, this.unitOptions);
-            this.renderFormItem('支撑模式', `模式${this.zcfs}`, (v: string): void => {
-              const modeId = parseInt(v.replace('模式', ''), 10);
-              if (!Number.isNaN(modeId)) {
-                this.loadMode(modeId);
-              }
-            }, this.supportModeOptions)
+            this.renderFormItem('选择转子', this.vm.selectRotor, (v: string): void => { this.vm.selectRotor = v; }, this.vm.getRotorOptions());
+            this.renderFormItem('测量模式', this.vm.measureMode, (v: string): void => { this.vm.measureMode = v; }, this.measureModeOptions);
+            this.renderFormItem('解算模式', this.vm.balanceMode, (v: string): void => {
+              this.vm.balanceMode = v;
+              this.storedSupportJsms = this.vm.balanceMode === '硬支撑' ? 0 : 1;
+              this.syncSupportModeForBalanceMode();
+              this.storedSupportMode = this.vm.zcfs;
+            }, this.balanceModeOptions);
+            this.renderFormItem('尺寸单位', this.vm.unit, (v: string): void => { this.vm.unit = v; }, this.unitOptions);
           }
+          .width('50%')
           .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
         }
-        .width('100%')
+        .width(260)
         .alignItems(VerticalAlign.Top)
       }
-      .width(360)
-      .padding({ left: 18, right: 18, top: 24, bottom: 24 })
-      .backgroundColor('#eef8ff')
-      .borderRadius(12)
-      .margin({ right: 14 })
+      .padding({ left: 16, right: 16, top: 20, bottom: 20 })
+      .margin({ right: 12 })
 
       Column() {
         Stack({ alignContent: Alignment.TopStart }) {
@@ -395,12 +456,12 @@ export struct RotorSettingsPanel {
               })
               .zIndex(4);
 
-            this.renderParamInput('A', this.rotorA, (v: string): void => { this.rotorA = v; }, this.aPos);
-            this.renderParamInput('B', this.rotorB, (v: string): void => { this.rotorB = v; }, this.bPos);
-            this.renderParamInput('C', this.rotorC, (v: string): void => { this.rotorC = v; }, this.cPos);
-            this.renderParamInput('R1', this.rotorR1, (v: string): void => { this.rotorR1 = v; }, this.r1Pos);
-            this.renderParamInput('R2', this.rotorR2, (v: string): void => { this.rotorR2 = v; }, this.r2Pos);
-            this.renderParamInput('转速', this.rotorSpeed, (v: string): void => { this.rotorSpeed = v; }, this.speedPos);
+            this.renderParamInput('A', this.vm.rotorA, (v: string): void => { this.vm.rotorA = v; }, this.aPos);
+            this.renderParamInput('B', this.vm.rotorB, (v: string): void => { this.vm.rotorB = v; }, this.bPos);
+            this.renderParamInput('C', this.vm.rotorC, (v: string): void => { this.vm.rotorC = v; }, this.cPos);
+            this.renderParamInput('R1', this.vm.rotorR1, (v: string): void => { this.vm.rotorR1 = v; }, this.r1Pos);
+            this.renderParamInput('R2', this.vm.rotorR2, (v: string): void => { this.vm.rotorR2 = v; }, this.r2Pos);
+            this.renderParamInput('转速', this.vm.rotorSpeed, (v: string): void => { this.vm.rotorSpeed = v; }, this.speedPos);
           }
         }
         .width('100%')
@@ -422,26 +483,29 @@ export struct RotorSettingsPanel {
         });
       }
       .layoutWeight(1)
-      .padding({ left: 26, right: 26, top: 10, bottom: 10 })
+      .padding({ left: 50, right: 80 })
       .alignItems(HorizontalAlign.Center)
       .justifyContent(FlexAlign.Center)
       .clip(false)
 
       Column({ space: 14 }) {
         this.renderActionButton('分度设定', 'image/rotor/correct.jpg', (): void => { this.openIndexDialog(); });
-        this.renderActionButton(`支撑方式\n模式${this.zcfs}`, 'image/rotor/support.jpg', (): void => { this.cycleMode(); });
+        this.renderActionButton('支撑方式', 'image/rotor/support.jpg', (): void => { this.openSupportWindow(); });
         this.renderActionButton('新增', 'image/rotor/add.png', (): void => { this.addRotor(); });
         this.renderActionButton('ISO计算', 'image/rotor/calcu.png', (): void => { this.openISOCalculate(); });
         this.renderActionButton('保存', 'image/rotor/save.png', (): void => { this.saveSettings(); });
         this.renderActionButton('删除', 'image/rotor/dele.jpg', (): void => { this.deleteRotor(); });
       }
-      .width(110)
-      .padding({ top: 24, bottom: 24, left: 8, right: 8 })
+      .width(90)
+      .padding({ top: 16, bottom: 16, left: 8, right: 8 })
+      .margin({ left: 8 })
       .alignItems(HorizontalAlign.Center)
       .justifyContent(FlexAlign.Start)
     }
-    .width('100%')
-    .height('100%')
-    .padding({ left: 10, right: 10, top: 10, bottom: 10 });
   }
+  // .width('100%')
+  // .height('100%')
+  // .backgroundColor('#e6f3ff')
+  // .padding({ left: 16, right: 16, top: 16, bottom: 16 });
+  // }
 }

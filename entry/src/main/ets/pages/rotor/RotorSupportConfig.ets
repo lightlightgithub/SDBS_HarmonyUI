@@ -2,11 +2,6 @@ export interface Margin {
   left: number;
   top: number;
 }
-
-export interface SelectOption {
-  value: string;
-}
-
 export interface AnnotationConfig {
   currentAnnotationLineGeometry: string;
   currentAnnotationInLineGeometry: string;

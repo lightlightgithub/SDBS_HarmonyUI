@@ -1,6 +1,6 @@
 import { SupportConfig } from './RotorSupportConfig';
 import router from '@ohos.router';
-import promptAction from '@ohos.promptAction';
+import { promptAction } from '@kit.ArkUI';
 
 interface RouterParams {
   zcfs?: number;

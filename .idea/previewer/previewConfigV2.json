@@ -54,12 +54,12 @@
    }
   ],
   "runningProfileList": [
-   "Phone"
+   "2in1"
   ],
   "availableProfileList": [
+   "Phone",
    "Foldable",
-   "Tablet",
-   "2in1"
+   "Tablet"
   ]
  },
  "enableFileOperation": false
