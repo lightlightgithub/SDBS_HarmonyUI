@@ -1,14 +1,26 @@
 import { promptAction } from '@kit.ArkUI';
 import { SupportConfig, MeasurementMode, Margin } from './RotorSupportConfig';
-import { PersistentConfig, SelectOption } from '../../models/global';
+import { PersistentConfig, CustomSelectOption } from '../../models/global';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
+import { RotorSetModel } from '../../models/entity';
 import router from '@ohos.router';
+
+// 模块级单例 VM —— 跨 Tab 切换保持数据不丢失
+let gRotorVm: RotorViewModel | null = null;
+function getSharedRotorVm(): RotorViewModel {
+  if (!gRotorVm) {
+    gRotorVm = new RotorViewModel();
+  }
+  return gRotorVm;
+}
+
 @Component
 export struct RotorSettingsPage {
   @Watch('onStoredSupportModeChange')
-  @StorageLink('rotorSupportSelectedMode') private storedSupportMode: number = 1; //全局存储找不到默认是支撑方式1
+  @StorageLink('rotorSupportSelectedMode') private storedSupportMode: number = 1;  //全局存储找不到默认是支撑方式1
   @Watch('onStoredSupportJsmsChange')
   @StorageLink('rotorSupportJsms') private storedSupportJsms: number = 0;
+
   @State private currentMode: MeasurementMode | null = null;
   @State private currentModeImage: string = 'image/rotor/rtsetmodel1.png';
   @State private displayWidth: number = 0;
@@ -30,6 +42,8 @@ export struct RotorSettingsPage {
   @State private r1Pos: Margin = { left: 0, top: 0 };
   @State private r2Pos: Margin = { left: 0, top: 0 };
   @State private speedPos: Margin = { left: 0, top: 0 };
+  @State private isDataLoaded: boolean = false;
+  @State private rotorSelectOptions: SelectOption[] = [];
 
   private readonly CANVAS_EXTEND: number = 90;
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -38,9 +52,24 @@ export struct RotorSettingsPage {
   private mainCanvasReady: boolean = false;
   private inCanvasReady: boolean = false;
   private arrowCanvasReady: boolean = false;
-  @State private vm: RotorViewModel = new RotorViewModel();
-  private balanceModeOptions: SelectOption[] = [{ value: '硬支撑' }, { value: '软支撑' }];
-  private unitOptions: SelectOption[] = [{ value: 'mm' }, { value: 'cm' }, { value: 'm' }, { value: 'inch' }, { value: 'foot' }];
+
+  @State private vm: RotorViewModel = getSharedRotorVm();
+
+  private rotorNameToIdMap: Map<string, number> = new Map();
+
+  private balanceModeOptions: SelectOption[] = [
+    { value: '硬支撑' },
+    { value: '软支撑' }
+  ];
+
+  private unitOptions: SelectOption[] = [
+    { value: 'mm' },
+    { value: 'cm' },
+    { value: 'm' },
+    { value: 'inch' },
+    { value: 'foot' }
+  ];
+
   private measureModeOptions: SelectOption[] = [
     { value: '双面动平衡' },
     { value: '单面动平衡' },
@@ -48,27 +77,59 @@ export struct RotorSettingsPage {
     { value: '立式双面动平衡' },
     { value: '立式动静平衡' }
   ];
-  private allowUnitOptions: SelectOption[] = [{ value: 'g' }, { value: 'mg' }, { value: 'g·mm' }, { value: 'g·cm' }];
-  private rotorOptions: SelectOption[] = [{ value: 'jP1' }, { value: 'jP2' }, { value: 'jP3' }];
+
+  private allowUnitOptions: SelectOption[] = [
+    { value: 'g' },
+    { value: 'mg' },
+    { value: 'g·mm' },
+    { value: 'g·cm' }
+  ];
 
   aboutToAppear(): void {
-    this.storedSupportMode = this.vm.zcfs ;
-    this.storedSupportJsms = this.vm.Jsms;
     SupportConfig.init();
+    console.log('aboutToAppear begin currentRotorId',this.vm.currentRotorId)
+    if (this.vm.currentRotorId !== 0 || this.vm.rotorList.length > 0) {
+      // VM 已有数据（从 Tab 切换回来），直接恢复 UI
+      this.storedSupportMode = this.vm.zcfs;
+      this.storedSupportJsms = this.vm.Jsms;
+      this.loadMode(this.vm.zcfs);
+      this.refreshRotorOptions();
+      this.isDataLoaded = true;
+    } else {
+      this.loadData();
+    }
+    console.log('aboutToAppear end currentRotorId',this.vm.currentRotorId)
+  }
+
+  async loadData(): Promise<void> {
+    await this.vm.initAsync();
+    this.storedSupportMode = this.vm.zcfs;
+    this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
+    this.refreshRotorOptions();
+    this.isDataLoaded = true;
+  }
+
+  private refreshRotorOptions(): void {
+    this.rotorNameToIdMap.clear();
+    this.rotorSelectOptions = [];
+    this.vm.rotorList.forEach(rotor => {
+      this.rotorNameToIdMap.set(rotor.name, rotor.id);
+      this.rotorSelectOptions.push({ value: rotor.name } as SelectOption);
+    });
   }
 
   private onStoredSupportModeChange(): void {
     if (this.storedSupportMode >= 1 && this.storedSupportMode <= 11 && this.storedSupportMode !== this.vm.zcfs) {
-      this.vm.zcfs = this.storedSupportMode; //  写 vm
-      this.loadMode(this.vm.zcfs); //  从 vm 读
+      this.vm.zcfs = this.storedSupportMode;
+      this.loadMode(this.vm.zcfs);
     }
   }
 
   private onStoredSupportJsmsChange(): void {
     const nextBalanceMode = this.storedSupportJsms === 0 ? '硬支撑' : '软支撑';
     if (this.vm.balanceMode !== nextBalanceMode) {
-      this.vm.balanceMode = nextBalanceMode; // 写 vm
+      this.vm.balanceMode = nextBalanceMode;
       this.syncSupportModeForBalanceMode();
     }
   }
@@ -94,14 +155,10 @@ export struct RotorSettingsPage {
   }
 
   private recalculateLayout(containerW: number, containerH: number): void {
-    if (this.currentMode === null) {
-      return;
-    }
+    if (!this.currentMode) return;
     const imgW = this.currentMode.imageWidth;
     const imgH = this.currentMode.imageHeight;
-    if (imgW === 0 || imgH === 0) {
-      return;
-    }
+    if (imgW <= 0 || imgH <= 0) return;
 
     const availableW = containerW;
     const availableH = containerH;
@@ -210,19 +267,16 @@ export struct RotorSettingsPage {
 
   private getFilteredModes(): number[] {
     const allModes: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-    if (this.vm.balanceMode === '软支撑') {
-      return allModes.filter((modeId: number): boolean => ![2, 4, 5, 7, 8, 9, 10].includes(modeId));
-    }
-    return allModes;
+    return this.vm.balanceMode === '软支撑'
+      ? allModes.filter(id => ![2, 4, 5, 7, 8, 9, 10].includes(id))
+      : allModes;
   }
 
   private syncSupportModeForBalanceMode(): void {
     const filteredModes = this.getFilteredModes();
-    if (filteredModes.length > 0) {
-      if (!filteredModes.includes(this.vm.zcfs)) { //  读 vm
-        this.vm.zcfs = filteredModes[0]; //  写 vm
-        this.loadMode(this.vm.zcfs);
-      }
+    if (filteredModes.length && !filteredModes.includes(this.vm.zcfs)) {
+      this.vm.zcfs = filteredModes[0];
+      this.loadMode(this.vm.zcfs);
     }
   }
 
@@ -235,44 +289,86 @@ export struct RotorSettingsPage {
     this.storedSupportMode = filteredModes.includes(this.vm.zcfs) ? this.vm.zcfs : filteredModes[0];
     this.storedSupportJsms = this.vm.balanceMode === '硬支撑' ? 0 : 1;
     router.pushUrl({
-      url: 'pages/dashboard/SupportWindow',
-      params: {
-        zcfs: this.storedSupportMode,
-        jsms: this.storedSupportJsms
+      url: 'pages/rotor/SupportWindow',
+      params: { zcfs: this.storedSupportMode, jsms: this.storedSupportJsms }
+    }).catch(() => promptAction.showToast({ message: '跳转失败' }));
+  }
+
+  private onRotorSelect(name: string): void {
+    const id = this.rotorNameToIdMap.get(name);
+    if (!id) return;
+    this.isDataLoaded = false;
+    this.vm.loadRotorById(id).then(ok => {
+      if (ok) {
+        this.refreshRotorOptions();
+        this.storedSupportMode = this.vm.zcfs;
+        this.storedSupportJsms = this.vm.Jsms;
+        this.loadMode(this.vm.zcfs);
       }
-    }).catch(() => {
-      promptAction.showToast({ message: '页面跳转失败', duration: 2000 });
+      setTimeout(() => { this.isDataLoaded = true; }, 50);
     });
   }
 
   private saveSettings(): void {
-    this.vm.saveRotor().then(success => {
-      if (success) {
-        promptAction.showToast({ message: '保存成功' });
-      } else {
-        promptAction.showToast({ message: this.vm.errorMessage });
-        //promptAction.showToast({ message: '转子设置已保存', duration: 1200 });
+    this.isDataLoaded = false;
+    this.vm.saveRotor().then(ok => {
+      this.refreshRotorOptions();
+      if (ok) {
+        this.storedSupportMode = this.vm.zcfs;
+        this.storedSupportJsms = this.vm.Jsms;
+        this.loadMode(this.vm.zcfs);
+        setTimeout(() => {
+          this.isDataLoaded = true;
+          promptAction.showToast({ message: ok ? '保存成功' : this.vm.errorMessage });
+        }, 50);
       }
+      else {
+        promptAction.showToast({ message: this.vm.errorMessage });
+      }
+
     });
   }
 
   private deleteRotor(): void {
-    this.vm.deleteRotor().then(success => {
-      promptAction.showToast({ message: success ? '删除成功' : this.vm.errorMessage });
+    this.isDataLoaded = false;
+    this.vm.deleteRotor().then(ok => {
+      this.refreshRotorOptions();
+      if (ok) {
+        this.storedSupportMode = this.vm.zcfs;
+        this.storedSupportJsms = this.vm.Jsms;
+        this.loadMode(this.vm.zcfs);
+        setTimeout(() => {
+          this.isDataLoaded = true;
+          promptAction.showToast({ message: ok ? '删除成功' : this.vm.errorMessage });
+        }, 50);
+      }
+      else {
+        promptAction.showToast({ message: this.vm.errorMessage });
+      }
+
     });
   }
 
   private addRotor(): void {
-    this.vm.addRotor();
-    promptAction.showToast({ message: '请输入转子信息后保存' });
+    this.isDataLoaded = false;       // 销毁表单组件
+    this.vm.resetForm();
+    this.storedSupportMode = this.vm.zcfs;
+    this.storedSupportJsms = this.vm.Jsms;
+    this.loadMode(this.vm.zcfs);
+    this.refreshRotorOptions();
+    // 延迟重建表单，确保组件以新值创建
+    setTimeout(() => {
+      this.isDataLoaded = true;
+      promptAction.showToast({ message: '请输入转子信息后保存' });
+    }, 50);
   }
 
   private openIndexDialog(): void {
-    promptAction.showToast({ message: '分度设定功能开发中', duration: 1200 });
+    promptAction.showToast({ message: '分度设定开发中', duration: 1200 });
   }
 
   private openISOCalculate(): void {
-    promptAction.showToast({ message: 'ISO计算功能开发中', duration: 1200 });
+    promptAction.showToast({ message: 'ISO计算开发中', duration: 1200 });
   }
 
   @Builder
@@ -383,29 +479,35 @@ export struct RotorSettingsPage {
     Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Stretch }) {
       Column() {
         Row() {
-          Column({ space: 20 }) {
-            this.renderFormItem('转子名称', this.vm.rotorName, (v: string): void => { this.vm.rotorName = v; });
-            this.renderFormItem('允许量单位', this.vm.allowUnit, (v: string): void => { this.vm.allowUnit = v; }, this.allowUnitOptions);
-            this.renderFormItem('静允许量', this.vm.staticAllow, (v: string): void => { this.vm.staticAllow = v; });
-            this.renderFormItem('平面一允许量', this.vm.plane1Allow, (v: string): void => { this.vm.plane1Allow = v; });
-            this.renderFormItem('平面二允许量', this.vm.plane2Allow, (v: string): void => { this.vm.plane2Allow = v; });
-          }
-          .width('50%')
-          .alignItems(HorizontalAlign.Start)
+          if (this.isDataLoaded) {
+            Column({ space: 20 }) {
+              this.renderFormItem('转子名称', this.vm.rotorName, v => this.vm.rotorName = v);
+              this.renderFormItem('允许量单位', this.vm.yxldw, v => this.vm.yxldw = v, this.allowUnitOptions);
+              this.renderFormItem('静允许量', this.vm.staticAllow, v => this.vm.staticAllow = v);
+              this.renderFormItem('平面一允许量', this.vm.plane1Allow, v => this.vm.plane1Allow = v);
+              this.renderFormItem('平面二允许量', this.vm.plane2Allow, v => this.vm.plane2Allow = v);
+            }
+            .width('50%')
+            .alignItems(HorizontalAlign.Start)
 
-          Column({ space: 20 }) {
-            this.renderFormItem('选择转子', this.vm.selectRotor, (v: string): void => { this.vm.selectRotor = v; }, this.vm.getRotorOptions());
-            this.renderFormItem('测量模式', this.vm.measureMode, (v: string): void => { this.vm.measureMode = v; }, this.measureModeOptions);
-            this.renderFormItem('解算模式', this.vm.balanceMode, (v: string): void => {
-              this.vm.balanceMode = v;
-              this.storedSupportJsms = this.vm.balanceMode === '硬支撑' ? 0 : 1;
-              this.syncSupportModeForBalanceMode();
-              this.storedSupportMode = this.vm.zcfs;
-            }, this.balanceModeOptions);
-            this.renderFormItem('尺寸单位', this.vm.unit, (v: string): void => { this.vm.unit = v; }, this.unitOptions);
+            Column({ space: 20 }) {
+              this.renderFormItem('选择转子', this.vm.selectRotor, (v: string) => {
+                this.vm.selectRotor = v;
+                this.onRotorSelect(v);
+              }, this.rotorSelectOptions);
+              this.renderFormItem('测量模式', this.vm.measureMode, v => this.vm.measureMode = v,
+                this.measureModeOptions);
+              this.renderFormItem('解算模式', this.vm.balanceMode, v => {
+                this.vm.balanceMode = v;
+                this.storedSupportJsms = v === '硬支撑' ? 0 : 1;
+                this.syncSupportModeForBalanceMode();
+                this.storedSupportMode = this.vm.zcfs;
+              }, this.balanceModeOptions);
+              this.renderFormItem('尺寸单位', this.vm.ccdw, v => this.vm.ccdw = v, this.unitOptions);
+            }
+            .width('50%')
+            .alignItems(HorizontalAlign.Start)
           }
-          .width('50%')
-          .alignItems(HorizontalAlign.Start)
         }
         .width(260)
         .alignItems(VerticalAlign.Top)
@@ -456,12 +558,14 @@ export struct RotorSettingsPage {
               })
               .zIndex(4);
 
-            this.renderParamInput('A', this.vm.rotorA, (v: string): void => { this.vm.rotorA = v; }, this.aPos);
-            this.renderParamInput('B', this.vm.rotorB, (v: string): void => { this.vm.rotorB = v; }, this.bPos);
-            this.renderParamInput('C', this.vm.rotorC, (v: string): void => { this.vm.rotorC = v; }, this.cPos);
-            this.renderParamInput('R1', this.vm.rotorR1, (v: string): void => { this.vm.rotorR1 = v; }, this.r1Pos);
-            this.renderParamInput('R2', this.vm.rotorR2, (v: string): void => { this.vm.rotorR2 = v; }, this.r2Pos);
-            this.renderParamInput('转速', this.vm.rotorSpeed, (v: string): void => { this.vm.rotorSpeed = v; }, this.speedPos);
+            if (this.isDataLoaded) {
+              this.renderParamInput('A', this.vm.rotorA, v => this.vm.rotorA = v, this.aPos);
+              this.renderParamInput('B', this.vm.rotorB, v => this.vm.rotorB = v, this.bPos);
+              this.renderParamInput('C', this.vm.rotorC, v => this.vm.rotorC = v, this.cPos);
+              this.renderParamInput('R1', this.vm.rotorR1, v => this.vm.rotorR1 = v, this.r1Pos);
+              this.renderParamInput('R2', this.vm.rotorR2, v => this.vm.rotorR2 = v, this.r2Pos);
+              this.renderParamInput('转速', this.vm.rotorSpeed, v => this.vm.rotorSpeed = v, this.speedPos);
+            }
           }
         }
         .width('100%')
@@ -489,12 +593,12 @@ export struct RotorSettingsPage {
       .clip(false)
 
       Column({ space: 14 }) {
-        this.renderActionButton('分度设定', 'image/rotor/correct.jpg', (): void => { this.openIndexDialog(); });
-        this.renderActionButton('支撑方式', 'image/rotor/support.jpg', (): void => { this.openSupportWindow(); });
-        this.renderActionButton('新增', 'image/rotor/add.png', (): void => { this.addRotor(); });
-        this.renderActionButton('ISO计算', 'image/rotor/calcu.png', (): void => { this.openISOCalculate(); });
-        this.renderActionButton('保存', 'image/rotor/save.png', (): void => { this.saveSettings(); });
-        this.renderActionButton('删除', 'image/rotor/dele.jpg', (): void => { this.deleteRotor(); });
+        this.renderActionButton('分度设定', 'image/rotor/correct.jpg', () => this.openIndexDialog());
+        this.renderActionButton('支撑方式', 'image/rotor/support.jpg', () => this.openSupportWindow());
+        this.renderActionButton('新增', 'image/rotor/add.png', () => this.addRotor());
+        this.renderActionButton('ISO计算', 'image/rotor/calcu.png', () => this.openISOCalculate());
+        this.renderActionButton('保存', 'image/rotor/save.png', () => this.saveSettings());
+        this.renderActionButton('删除', 'image/rotor/dele.jpg', () => this.deleteRotor());
       }
       .width(90)
       .padding({ top: 16, bottom: 16, left: 8, right: 8 })

@@ -5,7 +5,7 @@ import { RotorSetModel } from '../../models/entity';
 export  class  RotorApiService
 {
   //增删改转子
-  async RotorManage(req: BaseModelInput<RotorSetModel>): Promise<RespResult<boolean>>
+  async RotorManage(req: BaseModelInput<RotorSetModel>): Promise<RespResult<number>>
   {
     const httpRequest = http.createHttp();
     try {
@@ -20,7 +20,7 @@ export  class  RotorApiService
           readTimeout: 10000,
         }
       );
-      return JSON.parse(resp.result as string) as RespResult<boolean>;
+      return JSON.parse(resp.result as string) as RespResult<number>;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'RotorSet request failed');
     } finally {
@@ -40,8 +40,11 @@ export  class  RotorApiService
           readTimeout: 10000,
         }
       );
+      console.log('GetRotorList req',ApiConstants.BASE_URL + ApiConstants.GetRotorSetList);
+      console.log('GetRotorList resp',JSON.stringify(resp.result));
       return JSON.parse(resp.result as string) as RespResult<RotorSetModel[]>;
     } catch (e) {
+      console.log('GetRotorList err',e.message);
       throw new Error(e instanceof Error ? e.message : 'GetRotorList request failed');
     } finally {
       httpRequest.destroy();

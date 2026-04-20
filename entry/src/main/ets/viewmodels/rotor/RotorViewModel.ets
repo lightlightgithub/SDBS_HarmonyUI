@@ -1,14 +1,15 @@
-// RotorViewModel
 import { RotorApiService } from '../../services/api/RotorApiService';
-import { PersistentConfig, SelectOption,BaseModelInput } from '../../models/global';
+import { PersistentConfig, CustomSelectOption, BaseModelInput } from '../../models/global';
 import { RotorSetModel } from '../../models/entity';
-export class RotorViewModel
-{
-   rotorSetApiService: RotorApiService = new RotorApiService();
-   rotorsetModel?: RotorSetModel;
-   errorMessage: string = '';              // 提示文字
-   operateType:number = 0;
-   rotorList: RotorSetModel[] = [];
+import { JSON } from '@kit.ArkTS';
+
+@Observed
+export class RotorViewModel {
+  private rotorSetApiService: RotorApiService = new RotorApiService();
+  rotorsetModel?: RotorSetModel;
+  errorMessage: string = '';  // 提示文字
+  operateType: number = 0;
+  rotorList: RotorSetModel[] = [];
   // 表单字段（用于双向绑定）
   rotorName: string = '';
   rotorA: string = '';
@@ -18,32 +19,37 @@ export class RotorViewModel
   rotorR2: string = '';
   rotorSpeed: string = '';
   zcfs: number = 2;
-  Jsms:number = 0;
-  Clms:number = 0;
+  Jsms: number = 0;
+  Clms: number = 0;
   plane1Allow: string = '';
   plane2Allow: string = '';
   staticAllow: string = '';
   measureMode: string = '双面动平衡';
   balanceMode: string = '硬支撑';
-  unit: string = 'mm';
-  allowUnit: string = 'g';
+  ccdw: string = 'mm';
+  yxldw: string = 'g';
   selectRotor: string = '';
-  // 当前选中的转子ID
   currentRotorId: number = 0;
-  constructor() {
-    this.loadRotorList();
-    const persistentConfig = AppStorage.get<PersistentConfig>('persistentConfig');
-    if(persistentConfig && persistentConfig.lastrotor!=0) {
-      // 保存当前使用的转子ID到全局状态
-      this.currentRotorId = persistentConfig.lastrotor;
-      console.log(`lastRotorId:${persistentConfig.lastrotor}`)
-      this.loadRotorById(persistentConfig.lastrotor);
+
+  constructor() {}
+
+  async initAsync(): Promise<void> {
+    console.log('viewmodel initAsync');
+    await this.loadRotorList();
+    const persistentConfig = AppStorage.get<PersistentConfig>('persistentConfig')!;
+    const lastRotorId = persistentConfig?.lastrotor ?? 0;
+
+    if (lastRotorId !== 0) {
+      await this.loadRotorById(lastRotorId);
+    } else if (this.rotorList.length > 0) {
+      await this.loadFirstRotor();
     }
-    else {
-      console.log('没有读到持久化的rotorid')
-      this.loadFirstRotor();
-    }
+    console.log('rotorName',this.rotorName);
+    console.log('ccdw',this.ccdw);
+    console.log('yxldw',this.yxldw);
+    console.log('zcfs',this.zcfs);
   }
+
   private initDefaultValues(): void {
     this.rotorName = '';
     this.rotorA = '';
@@ -53,65 +59,65 @@ export class RotorViewModel
     this.rotorR2 = '';
     this.rotorSpeed = '';
     this.zcfs = 2;
+    this.Jsms = 0;
+    this.Clms = 0;
     this.plane1Allow = '';
     this.plane2Allow = '';
     this.staticAllow = '';
     this.measureMode = '双面动平衡';
     this.balanceMode = '硬支撑';
-    this.unit = 'mm';
-    this.allowUnit = 'g';
+    this.ccdw = 'mm';
+    this.yxldw = 'g';
     this.currentRotorId = 0;
     this.selectRotor = '';
     this.errorMessage = '';
   }
   // 从模型填充表单
   private fillFormFromModel(model: RotorSetModel): void {
-    this.currentRotorId = model.ID;
-    this.rotorName = model.NAME;
-    this.selectRotor = model.NAME;
-    this.zcfs = model.Zcfs;
-    this.Jsms = model.Jsms;
-    this.balanceMode = model.Jsms === 0 ? '硬支撑' : '软支撑';
-    this.rotorA = model.A.toString();
-    this.rotorB = model.B.toString();
-    this.rotorC = model.C.toString();
-    this.rotorR1 = model.R1.toString();
-    this.rotorR2 = model.R2.toString();
-    this.rotorSpeed = model.Speed.toString();
+    this.currentRotorId = model.id;
+    this.rotorName = model.name;
+    this.selectRotor = model.name;
+    this.zcfs = model.zcfs;
+    this.Jsms = model.jsms;
+    this.balanceMode = model.jsms === 0 ? '硬支撑' : '软支撑';
+    this.rotorA = model.a.toString();
+    this.rotorB = model.b.toString();
+    this.rotorC = model.c.toString();
+    this.rotorR1 = model.r1.toString();
+    this.rotorR2 = model.r2.toString();
+    this.rotorSpeed = model.speed.toString();
     // 允许量
-    this.staticAllow = model.Pmyyxl.toString();
-    this.plane1Allow = model.Pmeyxl.toString();
-    this.plane2Allow = model.Jyxl.toString();
-
+    this.staticAllow = model.pmyyxl.toString();
+    this.plane1Allow = model.pmeyxl.toString();
+    this.plane2Allow = model.jyxl.toString();
     // 单位
-    this.unit = model.Ccdw.toString();
-    this.allowUnit = model.Yxldw.toString();
-
+    this.ccdw = RotorViewModel.codeToUnit(model.ccdw);
+    this.yxldw = RotorViewModel.codeToAllowUnit(model.yxldw);
     // 测量模式
-    this.Clms = model.Clms;
-    this.measureMode = model.Clms === 1 ? '单面动平衡' : model.Clms === 2 ? '双面动平衡' : '动静平衡';
+    this.Clms = model.clms;
+    this.measureMode = model.clms === 1 ? '单面动平衡' : model.clms === 2 ? '双面动平衡' : '动静平衡';
     this.rotorsetModel = model;
   }
-  // 构建模型（用于提交）
+  // 构建模型（用于提交
   private buildModel(): RotorSetModel {
     return {
-      ID: this.currentRotorId,
-      NAME: this.rotorName,
-      Zcfs: this.zcfs,
-      Jsms: 0,
-      Clms: 0,
-      Ccdw: 0,
-      Yxldw: 0,
-      Pmyyxl: 0,
-      Pmeyxl: 0,
-      Jyxl: 0,
-      A: parseFloat(this.rotorA) || 0,
-      B: parseFloat(this.rotorB) || 0,
-      C: parseFloat(this.rotorC) || 0,
-      R1: parseFloat(this.rotorR1) || 0,
-      R2: parseFloat(this.rotorR2) || 0,
-      Speed: parseFloat(this.rotorSpeed) || 0,
-      MODIFYTIME: new Date().toISOString()
+      id: this.currentRotorId,
+      name: this.rotorName,
+      zcfs: this.zcfs,
+      jsms: this.Jsms,
+      clms: this.Clms,
+      ccdw: RotorViewModel.unitToCode(this.ccdw),
+      yxldw: RotorViewModel.allowUnitToCode(this.yxldw),
+      pmyyxl: parseFloat(this.staticAllow) || 0,
+      pmeyxl: parseFloat(this.plane1Allow) || 0,
+      jyxl: parseFloat(this.plane2Allow) || 0,
+      a: parseFloat(this.rotorA) || 0,
+      b: parseFloat(this.rotorB) || 0,
+      c: parseFloat(this.rotorC) || 0,
+      r1: parseFloat(this.rotorR1) || 0,
+      r2: parseFloat(this.rotorR2) || 0,
+      speed: parseFloat(this.rotorSpeed) || 0,
+      modifytime: new Date().toISOString()
     };
   }
 
@@ -136,13 +142,9 @@ export class RotorViewModel
   async loadRotorById(id: number): Promise<boolean> {
     try {
       const resp = await this.rotorSetApiService.GetRotorById(id);
-      console.log('转子信息：',JSON.stringify(resp));
       if (resp.success && resp.respData) {
         this.fillFormFromModel(resp.respData);
         return true;
-      }
-      else {
-        console.log('没有读取转子信息');
       }
       this.errorMessage = resp.message || '加载转子失败';
       return false;
@@ -155,19 +157,11 @@ export class RotorViewModel
   // 加载第一个转子
   async loadFirstRotor(): Promise<boolean> {
     if (this.rotorList.length > 0) {
-      return await this.loadRotorById(this.rotorList[0].ID);
+      return await this.loadRotorById(this.rotorList[0].id);
     }
     return false;
   }
 
-  // 新增转子
-  async addRotor(): Promise<void> {
-    this.initDefaultValues();
-    this.errorMessage = '';
-    console.log('新增：已清空表单，可直接输入保存');
-  }
-
-  // 保存转子
   async saveRotor(): Promise<boolean> {
     try {
       // 自动判断：ID=0 → 新增，否则 → 修改
@@ -176,25 +170,18 @@ export class RotorViewModel
         operateType: this.operateType,
         model: this.buildModel()
       };
-      console.log('operateType：', this.operateType);
-      console.log('保存内容：', JSON.stringify(req));
       const resp = await this.rotorSetApiService.RotorManage(req);
-      console.log('保存结果：', JSON.stringify(resp));
       if (resp.success) {
-        if (this.operateType === 1) {
-          // 新增成功后，重新加载列表 & 获取最新ID
-          const result = await this.loadRotorList();
-          if (this.rotorList.length > 0) {
-            // 按 ID 排序，取最大的 ID（最新的）
-            const maxIdRot = this.rotorList.reduce((prev, curr) =>
-            curr.ID > prev.ID ? curr : prev
-            );
-            this.currentRotorId = maxIdRot.ID;
-            this.selectRotor = maxIdRot.NAME;
-
-            AppStorage.set('lastrotor', this.currentRotorId);
-          }
+        // 重新加载列表
+        await this.loadRotorList();
+        if (this.operateType === 1 && resp.respData) {
+          this.currentRotorId = resp.respData;
         }
+        const savedRotor = this.rotorList.find(r => r.id === this.currentRotorId);
+        if (savedRotor) {
+          this.selectRotor = savedRotor.name;
+        }
+        AppStorage.set('lastrotor', this.currentRotorId);
         return true;
       }
       this.errorMessage = resp.message || '保存失败';
@@ -212,13 +199,32 @@ export class RotorViewModel
       this.errorMessage = '请先选择要删除的转子';
       return false;
     }
-    this.operateType = 3;
-    const req: BaseModelInput<RotorSetModel> = {
-      operateType: 3,
-      model: this.buildModel()
-    };
-    const resp = await this.rotorSetApiService.RotorManage(req);
-    return resp.success;
+    if(this.rotorList.length == 1){
+      this.errorMessage = '当前只有一个转子，不允许删除';
+      return false;
+    }
+    try {
+      const req: BaseModelInput<RotorSetModel> = {
+        operateType: 3,
+        model: this.buildModel()
+      };
+      const resp = await this.rotorSetApiService.RotorManage(req);
+      if (resp.success) {
+        await this.loadRotorList();
+        if (this.rotorList.length > 0) {
+          await this.loadRotorById(this.rotorList[0].id);
+        } else {
+          this.initDefaultValues();
+        }
+        return true;
+      }
+      this.errorMessage = resp.message || '删除失败';
+      return false;
+    } catch (e) {
+      console.error('删除异常：', e);
+      this.errorMessage = '网络异常，删除失败';
+      return false;
+    }
   }
 
   // 重置表单
@@ -226,10 +232,35 @@ export class RotorViewModel
     this.initDefaultValues();
   }
 
-  getRotorOptions(): SelectOption[] {
+  getRotorOptions(): CustomSelectOption[] {
     return this.rotorList.map(rotor => ({
-      value: rotor.NAME,
-      id: rotor.ID
-    } as SelectOption));
+      value: rotor.id,
+      text: rotor.name
+    } as CustomSelectOption));
+  }
+
+  getRotorIdByName(name: string): number {
+    const rotor = this.rotorList.find(r => r.name === name);
+    return rotor ? rotor.id : 0;
+  }
+
+  static codeToUnit(code: number): string {
+    const map: Record<number, string> = { 1: 'mm', 2: 'cm', 3: 'm', 4: 'inch', 5: 'foot' };
+    return map[code] || 'mm';
+  }
+
+  static unitToCode(unit: string): number {
+    const map: Record<string, number> = { 'mm': 1, 'cm': 2, 'm': 3, 'inch': 4, 'foot': 5 };
+    return map[unit] || 0;
+  }
+
+  static codeToAllowUnit(code: number): string {
+    const map: Record<number, string> = { 1: 'g', 2: 'mg', 3: 'g·mm', 4: 'g·cm' };
+    return map[code] || 'g';
+  }
+
+  static allowUnitToCode(unit: string): number {
+    const map: Record<string, number> = { 'g': 1, 'mg': 2, 'g·mm': 3, 'g·cm': 4 };
+    return map[unit] || 0;
   }
 }
