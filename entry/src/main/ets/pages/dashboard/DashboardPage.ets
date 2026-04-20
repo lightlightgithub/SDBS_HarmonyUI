@@ -41,7 +41,6 @@ struct DashboardPage {
   @State private dateStr: string = '----.--.--.';
   private timer: number = -1;
   @State private vm: SettingsViewModel = new SettingsViewModel();
-  @StorageLink('persistentConfig') persistentConfig: PersistentConfig | null = null;
   /** 页面显示时启动时钟定时器 */
   aboutToAppear(): void {
     this.updateTime();

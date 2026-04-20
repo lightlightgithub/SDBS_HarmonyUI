@@ -13,4 +13,5 @@ export class ApiConstants {
   static readonly GetRotorSetByID = '/api/RotorSet/GetRotorByID';  //根据ID查询转子
   static readonly RotorManage = '/api/RotorSet/RotorManage';  //转子管理
   static readonly GetPersistentConfig = '/api/Setting/GetPersistentConfig';  //查询持久化配置
+  static readonly UpdatePersistentConfig = '/api/Setting/UpdatePersistentConfig'; //更新持久化配置
 }

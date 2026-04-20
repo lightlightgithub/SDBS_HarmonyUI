@@ -1,7 +1,6 @@
 import { RotorApiService } from '../../services/api/RotorApiService';
 import { PersistentConfig, CustomSelectOption, BaseModelInput } from '../../models/global';
 import { RotorSetModel } from '../../models/entity';
-import { JSON } from '@kit.ArkTS';
 
 @Observed
 export class RotorViewModel {
@@ -34,7 +33,6 @@ export class RotorViewModel {
   constructor() {}
 
   async initAsync(): Promise<void> {
-    console.log('viewmodel initAsync');
     await this.loadRotorList();
     const persistentConfig = AppStorage.get<PersistentConfig>('persistentConfig')!;
     const lastRotorId = persistentConfig?.lastrotor ?? 0;
@@ -44,10 +42,7 @@ export class RotorViewModel {
     } else if (this.rotorList.length > 0) {
       await this.loadFirstRotor();
     }
-    console.log('rotorName',this.rotorName);
-    console.log('ccdw',this.ccdw);
-    console.log('yxldw',this.yxldw);
-    console.log('zcfs',this.zcfs);
+    AppStorage.set('lastrotor', this.currentRotorId);
   }
 
   private initDefaultValues(): void {

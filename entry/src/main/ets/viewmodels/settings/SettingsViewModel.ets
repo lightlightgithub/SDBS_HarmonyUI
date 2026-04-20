@@ -8,7 +8,7 @@ export class SettingsViewModel
   async getPersistentConfig(): Promise<void> {
     try {
       const resp = await this.settingsApiService.getPersistentConfig();
-      console.log('持久化缓存：', JSON.stringify(resp)); // 最稳妥
+      console.log('持久化缓存：', JSON.stringify(resp));
       if (resp.success && resp.respData) {
         AppStorage.set('persistentConfig', resp.respData);
       }

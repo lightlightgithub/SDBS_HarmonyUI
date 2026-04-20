@@ -1,8 +1,6 @@
 import { promptAction } from '@kit.ArkUI';
 import { SupportConfig, MeasurementMode, Margin } from './RotorSupportConfig';
-import { PersistentConfig, CustomSelectOption } from '../../models/global';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
-import { RotorSetModel } from '../../models/entity';
 import router from '@ohos.router';
 
 // 模块级单例 VM —— 跨 Tab 切换保持数据不丢失
@@ -493,7 +491,7 @@ export struct RotorSettingsPage {
             Column({ space: 20 }) {
               this.renderFormItem('选择转子', this.vm.selectRotor, (v: string) => {
                 this.vm.selectRotor = v;
-                this.onRotorSelect(v);
+                this.onRotorSelect(v); // 切换转子并自动同步表单
               }, this.rotorSelectOptions);
               this.renderFormItem('测量模式', this.vm.measureMode, v => this.vm.measureMode = v,
                 this.measureModeOptions);
