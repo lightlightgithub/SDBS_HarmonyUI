@@ -3,7 +3,7 @@
  * 布局参照原项目 Main.xaml：顶部栏 | 内容区 | 底部工具栏
  * 底部工具栏始终可见，内容区根据选中按钮切换对应模块
  */
-import { SettingsViewModel } from '../../viewmodels/settings/SettingsViewModel';
+import { PersistentService } from '../../services/storage/PersistentService';
 import { PersistentConfig } from '../../models/global';
 import { RotorSettingsPage } from '../rotor/RotorSettingsPage';
 /** 工具栏按钮描述（NavItem 避免与 ArkUI 内置 ToolbarItem 冲突） */
@@ -40,19 +40,38 @@ struct DashboardPage {
   @State private timeStr: string = '--:--:--';
   @State private dateStr: string = '----.--.--.';
   private timer: number = -1;
-  @State private vm: SettingsViewModel = new SettingsViewModel();
+  private persistentService: PersistentService = PersistentService.getInstance();
+  @StorageLink('persistentConfig') persistentConfigJson: string = '';
+  
   /** 页面显示时启动时钟定时器 */
   aboutToAppear(): void {
     this.updateTime();
     this.timer = setInterval(() => {
       this.updateTime();
     }, 1000);
-    this.vm.getPersistentConfig(); //加载持久化配置项
+    // 使用 PersistentService 加载配置
+    this.loadPersistentConfig();
   }
      /** 页面销毁时清理定时器 */
   aboutToDisappear(): void {
     if (this.timer !== -1) {
       clearInterval(this.timer);
+    }
+  }
+
+  /** 加载持久化配置 */
+  private async loadPersistentConfig(): Promise<void> {
+    try {
+      const success = await this.persistentService.loadFromServer();
+      if (success) {
+        console.log('DashboardPage: 持久化配置加载成功');
+        const config = this.persistentService.getConfig();
+        console.log('持久化缓存config:', JSON.stringify(config));
+      } else {
+        console.warn('DashboardPage: 持久化配置加载失败');
+      }
+    } catch (e) {
+      console.error('DashboardPage: 加载配置异常:', e);
     }
   }
 
@@ -65,8 +84,21 @@ struct DashboardPage {
   }
 
   /** 工具栏按钮点击：退出返回登录页，其余切换内容区 */
-  private onToolbarClick(id: string): void {
+  private async onToolbarClick(id: string): Promise<void> {
     if (id === 'exit') {
+      // 退出前先保存持久化配置
+      try {
+        console.log('DashboardPage: 退出按钮点击，正在保存配置...');
+        const success = await this.persistentService.saveToServer();
+        if (success) {
+          console.log('DashboardPage: 配置保存成功，准备退出');
+        } else {
+          console.warn('DashboardPage: 配置保存失败，仍然退出');
+        }
+      } catch (e) {
+        console.error('DashboardPage: 保存配置异常:', e);
+      }
+      // 退出返回登录页
       this.getUIContext().getRouter().replaceUrl({ url: 'pages/auth/LoginPage' })
         .catch((err: Error) => { console.error('replaceUrl failed:', err.message); });
       return;
@@ -81,7 +113,7 @@ struct DashboardPage {
       this.buildMeasureContent();
     } else if (this.activeTab === 'rotor') {
       RotorSettingsPage();
-    } else {
+    }else {
       Column() {
         Text(this.activeTab)
           .fontSize(22).fontColor('#2a5a8a').opacity(0.4)

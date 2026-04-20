@@ -1,6 +1,8 @@
 import { promptAction } from '@kit.ArkUI';
 import { SupportConfig, MeasurementMode, Margin } from './RotorSupportConfig';
+import { PersistentConfig, CustomSelectOption } from '../../models/global';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
+import { RotorSetModel } from '../../models/entity';
 import router from '@ohos.router';
 
 // 模块级单例 VM —— 跨 Tab 切换保持数据不丢失

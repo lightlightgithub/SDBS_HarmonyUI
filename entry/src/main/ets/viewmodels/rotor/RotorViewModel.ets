@@ -1,6 +1,7 @@
 import { RotorApiService } from '../../services/api/RotorApiService';
 import { PersistentConfig, CustomSelectOption, BaseModelInput } from '../../models/global';
 import { RotorSetModel } from '../../models/entity';
+import { PersistentService } from '../../services/storage/PersistentService';
 
 @Observed
 export class RotorViewModel {
@@ -29,20 +30,25 @@ export class RotorViewModel {
   yxldw: string = 'g';
   selectRotor: string = '';
   currentRotorId: number = 0;
+  persistentService = PersistentService.getInstance();
+  constructor() {
 
-  constructor() {}
+  }
 
   async initAsync(): Promise<void> {
     await this.loadRotorList();
-    const persistentConfig = AppStorage.get<PersistentConfig>('persistentConfig')!;
+    const persistentConfig = this.persistentService.getConfig();
     const lastRotorId = persistentConfig?.lastrotor ?? 0;
 
     if (lastRotorId !== 0) {
       await this.loadRotorById(lastRotorId);
     } else if (this.rotorList.length > 0) {
       await this.loadFirstRotor();
+      if(persistentConfig){
+        persistentConfig.lastrotor = this.currentRotorId;
+        this.persistentService.setConfig(persistentConfig);
+      }
     }
-    AppStorage.set('lastrotor', this.currentRotorId);
   }
 
   private initDefaultValues(): void {
@@ -176,11 +182,20 @@ export class RotorViewModel {
         if (savedRotor) {
           this.selectRotor = savedRotor.name;
         }
-        AppStorage.set('lastrotor', this.currentRotorId);
+        const config = this.persistentService.getConfig();
+        if (config) {
+          config.lastrotor = this.currentRotorId;
+          this.persistentService.setConfig(config);
+          console.log('persistentConfig 保存成功',JSON.stringify(config));
+        }
+        const getConfig = this.persistentService.getConfig();
+        console.log('last rotor id',getConfig?.lastrotor);
         return true;
+        }else {
+        this.errorMessage = resp.message || '保存失败';
+        return false;
       }
-      this.errorMessage = resp.message || '保存失败';
-      return false;
+
     } catch (e) {
       console.error('保存异常：', e);
       this.errorMessage = '网络异常，保存失败';
