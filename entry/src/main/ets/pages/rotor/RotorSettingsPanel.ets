@@ -1,8 +1,5 @@
 import { SupportConfig, MeasurementMode, Margin, SelectOption } from './RotorSupportConfig';
-import { PersistentConfig, CustomSelectOption } from '../../models/global';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
-import { RotorSetModel } from '../../models/entity';
-import router from '@ohos.router';
 import { promptAction } from '@kit.ArkUI';
 
 // 模块级单例 VM —— 跨 Tab 切换保持数据不丢失
@@ -304,14 +301,20 @@ export struct RotorSettingsPanel {
   private addRotor(): void {
    // this.newRotorName = '';
     //this.addDialogVisible = true;
+
+    // // 清空 ViewModel 数据
     this.vm.resetForm();
+    // 强制触发 UI 刷新，让输入框清空
+    this.isDataLoaded = false;
     this.storedSupportMode = this.vm.zcfs;
     this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
-    // setTimeout(() => {
-    //   promptAction.showToast({ message: '请输入转子信息后保存' });
-    // }, 50);
+    // 重新加载数据，恢复页面显示
+    setTimeout(() => {
+      this.isDataLoaded = true;
+      this.showToast('已新建转子，请输入参数后保存');
+    }, 50);
   }
 
   private confirmDelete(): void {
