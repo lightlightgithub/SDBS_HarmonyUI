@@ -302,16 +302,16 @@ export struct RotorSettingsPanel {
   }
 
   private addRotor(): void {
-    this.newRotorName = '';
-    this.addDialogVisible = true;
+   // this.newRotorName = '';
+    //this.addDialogVisible = true;
     this.vm.resetForm();
     this.storedSupportMode = this.vm.zcfs;
     this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
-    setTimeout(() => {
-      promptAction.showToast({ message: '请输入转子信息后保存' });
-    }, 50);
+    // setTimeout(() => {
+    //   promptAction.showToast({ message: '请输入转子信息后保存' });
+    // }, 50);
   }
 
   private confirmDelete(): void {

@@ -60,7 +60,7 @@ export class RotorViewModel {
     this.rotorR1 = '';
     this.rotorR2 = '';
     this.rotorSpeed = '';
-    this.zcfs = 2;
+    this.zcfs = 1;
     this.Jsms = 0;
     this.Clms = 0;
     this.plane1Allow = '';
@@ -76,6 +76,7 @@ export class RotorViewModel {
   }
   // 从模型填充表单
   private fillFormFromModel(model: RotorSetModel): void {
+    console.log('fillFormFromModel',JSON.stringify(model));
     this.currentRotorId = model.id;
     this.rotorName = model.name;
     this.selectRotor = model.name;
@@ -145,7 +146,9 @@ export class RotorViewModel {
   // 根据ID加载转子
   async loadRotorById(id: number): Promise<boolean> {
     try {
+      console.log('loadRotorById',id);
       const resp = await this.rotorSetApiService.GetRotorById(id);
+      console.log('loadRotorById resp',JSON.stringify(resp));
       if (resp.success && resp.respData) {
         this.fillFormFromModel(resp.respData);
         return true;
