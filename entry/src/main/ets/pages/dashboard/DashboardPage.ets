@@ -1,11 +1,12 @@
 /**
- * DashboardPage —— 主页 Shell 容器
- * 布局参照原项目 Main.xaml：顶部栏 | 内容区 | 底部工具栏
- * 底部工具栏始终可见，内容区根据选中按钮切换对应模块
+ * DashboardPage —— 主界面壳层代码
+ * 包含顶部区域、内容区和底部主菜单。
  */
+
+import { SupportConfig, MeasurementMode, Margin, SelectOption } from '../rotor/RotorSupportConfig';
+import { RotorSettingsPanel } from '../rotor/RotorSettingsPanel';
 import { PersistentService } from '../../services/storage/PersistentService';
 import { PersistentConfig } from '../../models/global';
-import { RotorSettingsPage } from '../rotor/RotorSettingsPage';
 /** 工具栏按钮描述（NavItem 避免与 ArkUI 内置 ToolbarItem 冲突） */
 interface NavItem {
   id: string;      // 模块唯一标识
@@ -42,7 +43,14 @@ struct DashboardPage {
   private timer: number = -1;
   private persistentService: PersistentService = PersistentService.getInstance();
   @StorageLink('persistentConfig') persistentConfigJson: string = '';
-  
+  private showToast(message: string, duration: number = 1500): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message, duration });
+    } catch (error) {
+      console.error(`showToast failed: ${JSON.stringify(error)}`);
+    }
+  }
+
   /** 页面显示时启动时钟定时器 */
   aboutToAppear(): void {
     this.updateTime();
@@ -58,7 +66,6 @@ struct DashboardPage {
       clearInterval(this.timer);
     }
   }
-
   /** 加载持久化配置 */
   private async loadPersistentConfig(): Promise<void> {
     try {
@@ -74,7 +81,6 @@ struct DashboardPage {
       console.error('DashboardPage: 加载配置异常:', e);
     }
   }
-
   /** 更新顶部时钟和日期文字 */
   private updateTime(): void {
     const now = new Date();
@@ -84,7 +90,7 @@ struct DashboardPage {
   }
 
   /** 工具栏按钮点击：退出返回登录页，其余切换内容区 */
-  private async onToolbarClick(id: string): Promise<void> {
+  private async  onToolbarClick(id: string): Promise<void> {
     if (id === 'exit') {
       // 退出前先保存持久化配置
       try {
@@ -112,8 +118,8 @@ struct DashboardPage {
     if (this.activeTab === 'start' || this.activeTab === 'stop') {
       this.buildMeasureContent();
     } else if (this.activeTab === 'rotor') {
-      RotorSettingsPage();
-    }else {
+      RotorSettingsPanel();
+    } else {
       Column() {
         Text(this.activeTab)
           .fontSize(22).fontColor('#2a5a8a').opacity(0.4)
@@ -452,7 +458,6 @@ struct DashboardPage {
     .height('100%')
   }
 }
-
 
 @Component
 struct PolarChart {

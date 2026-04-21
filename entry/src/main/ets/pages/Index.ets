@@ -1,3 +1,4 @@
+// 默认首页示例界面代码
 @Entry
 @Component
 struct Index {

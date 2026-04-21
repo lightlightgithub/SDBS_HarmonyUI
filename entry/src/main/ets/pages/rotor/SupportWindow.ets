@@ -1,6 +1,6 @@
+// 支撑方式选择界面代码
 import { SupportConfig } from './RotorSupportConfig';
 import router from '@ohos.router';
-import { promptAction } from '@kit.ArkUI';
 
 interface RouterParams {
   zcfs?: number;
@@ -15,6 +15,14 @@ struct SupportWindow {
   @State videoSrc: string = '';
   @State isPlaying: boolean = false;
   private videoController: VideoController = new VideoController();
+
+  private showToast(message: string, duration: number = 2000): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message, duration });
+    } catch (error) {
+      console.error(`showToast failed: ${JSON.stringify(error)}`);
+    }
+  }
 
   aboutToAppear() {
     try {
@@ -72,13 +80,7 @@ struct SupportWindow {
     try {
       AppStorage.set('rotorSupportSelectedMode', this.selectedMode);
       AppStorage.set('rotorSupportJsms', this.jsms);
-      router.back({
-        url: 'pages/dashboard/DashboardPage',
-        params: {
-          selectedMode: this.selectedMode,
-          jsms: this.jsms
-        }
-      });
+      router.back();
       console.info(`返回参数 - selectedMode: ${this.selectedMode}, jsms: ${this.jsms}`);
     } catch (error) {
       console.error(`返回失败: ${JSON.stringify(error)}`);
@@ -117,13 +119,13 @@ struct SupportWindow {
               GridItem() {
                 Column({ space: 5 }) {
                   Image($r(`app.media.supportmodel${i}`))
-                    .width(120)
-                    .height(100)
+                    .width(138)
+                    .height(112)
                     .objectFit(ImageFit.Contain);
                   Text(`模式${i}`)
-                    .fontSize(16);
+                    .fontSize(17);
                 }
-                .padding(10)
+                .padding(12)
                 .backgroundColor(this.selectedMode === i ? '#ccebff' : '#fff')
                 .border({
                   width: this.selectedMode === i ? 2 : 1,
@@ -137,8 +139,8 @@ struct SupportWindow {
             })
           }
           .columnsTemplate('1fr 1fr 1fr 1fr')
-          .columnsGap(8)
-          .rowsGap(8)
+          .columnsGap(10)
+          .rowsGap(10)
           .width('100%')
           .padding(10)
         }
@@ -193,13 +195,11 @@ struct SupportWindow {
             .autoPlay(true)
             .loop(true)
             .muted(true)
-            .objectFit(ImageFit.Contain)
+            .controls(false)
+            .objectFit(ImageFit.Cover)
             .onError((error) => {
               console.error(`视频加载错误: ${JSON.stringify(error)}`);
-              promptAction.showToast({
-                message: `视频加载失败，请检查文件: videomodel${this.selectedMode}.mp4`,
-                duration: 2000
-              });
+              this.showToast(`视频加载失败，请检查文件: videomodel${this.selectedMode}.mp4`, 2000);
             });
         }
         .width('100%')

@@ -2,6 +2,11 @@ export interface Margin {
   left: number;
   top: number;
 }
+
+export interface SelectOption {
+  value: string;
+}
+
 export interface AnnotationConfig {
   currentAnnotationLineGeometry: string;
   currentAnnotationInLineGeometry: string;
@@ -48,30 +53,30 @@ export class MeasurementMode {
 const MODES_CONFIG: Record<number, AnnotationConfig> = {
   1: {
     currentAnnotationLineGeometry:
-      'M163,0 L163,172 M318,-22 L318,26 M616,-3 L616,169 M440,-22 L440,26 M125,85 L270,85 M120,180 L141,180 M510,115 L663,115 M637,180 L658,180',
+      'M189,0 L189,182 M334,0 L334,47 M611,0 L611,182 M450,0 L450,47 M135,99 L290,99 M135,190 L166,190 M512,127 L665,127 M634,190 L665,190',
     currentAnnotationInLineGeometry:
-      'M310,12 L438,12 M163,12 L320,12 M444,12 L615,12 M133,85 L133,178 M646,115 L646,180',
+      'M337,10 L446,10 M192,10 L330,10 M454,10 L607,10 M146,101 L146,188 M656,130 L656,188',
     currentAnnotationArrowGeometry:
-      'M163,12 L167,15 L167,9 Z M320,12 L324,15 L324,9 Z M318,12 L314,15 L314,9 Z M442,12 L446,15 L446,9 Z M440,12 L436,15 L436,9 Z M616,12 L612,15 L612,9 Z M133,85 L130,89 L136,89 Z M133,178 L130,174 L136,174 Z M646,115 L643,119 L649,119 Z M646,180 L643,176 L649,176 Z',
-    aPosition: { left: 180, top: -10 },
-    bPosition: { left: 317, top: -10 },
-    cPosition: { left: 460, top: -10 },
-    r1Position: { left: 35, top: 115 },
-    r2Position: { left: 615, top: 115 },
-    speedPosition: { left: 310, top: 300 },
+      'M191,10 L195,13 L195,7 Z M336,10 L340,13 L340,7 Z M332,10 L328,13 L328,7 Z M452,10 L456,13 L456,7 Z M448,10 L444,13 L444,7 Z M608,10 L604,7 L604,13 Z M146,100 L143,104 L149,104 Z M146,189 L143,185 L149,185 Z M656,129 L653,133 L659,133 Z M656,189 L653,185 L659,185 Z',
+    aPosition: { left: 212, top: -10 },
+    bPosition: { left: 340, top: -10 },
+    cPosition: { left: 483, top: -10 },
+    r1Position: { left: 50, top: 121 },
+    r2Position: { left: 662, top: 139 },
+    speedPosition: { left: 340, top: 328 },
   },
   2: {
     currentAnnotationLineGeometry:
-      'M136,-55 L136,16 M645,-55 L645,16 M273,-15 L273,143 M505,-15 L505,143 M40,75 L90,75 M40,170 L68,170 M688,72 L738,72 M710,170 L736,170',
+      'M156,-20 L156,49 M635,-20 L635,49 M283,25 L283,170 M513,25 L513,170 M70,99 L120,99 M70,190 L98,190 M670,99 L720,99 M694,190 L720,190',
     currentAnnotationInLineGeometry:
-      'M140,-35 L638,-35 M140,-5 L270,-5 M510,-5 L636,-5 M55,78 L55,165 M720,78 L720,165',
+      'M158,10 L633,10 M158,40 L281,40 M515,40 L633,40 M86,101 L86,188 M706,101 L706,188',
     currentAnnotationArrowGeometry:
-      'M140,-35 L144,-32 L144,-38 Z M638,-35 L634,-32 L634,-38 Z M140,-5 L144,-2 L144,-8 Z M270,-5 L266,-2 L266,-8 Z M510,-5 L514,-2 L514,-8 Z M636,-5 L632,-2 L632,-8 Z M55,78 L52,82 L58,82 Z M55,165 L52,161 L58,161 Z M720,78 L717,82 L723,82 Z M720,165 L717,161 L723,161 Z',
-    aPosition: { left: 142, top: -10 },
-    bPosition: { left: 325, top: -43 },
-    cPosition: { left: 510, top: -10 },
-    r1Position: { left: -50, top: 121 },
-    r2Position: { left: 690, top: 121 },
+      'M157,10 L161,13 L161,7 Z M157,40 L161,43 L161,37 Z M282,40 L278,43 L278,37 Z M634,10 L630,13 L630,7 Z M634,40 L630,43 L630,37 Z M514,40 L518,43 L518,37 Z M86,100 L83,104 L89,104 Z M86,189 L83,185 L89,185 Z M706,100 L703,104 L709,104 Z M706,189 L703,185 L709,185 Z',
+    aPosition: { left: 172, top: 20 },
+    bPosition: { left: 345, top: -13 },
+    cPosition: { left: 524, top: 20 },
+    r1Position: { left: -14, top: 121 },
+    r2Position: { left: 705, top: 121 },
     speedPosition: { left: 345, top: 320 },
   },
   3: {
@@ -99,7 +104,7 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
     bPosition: { left: 292, top: -12 },
     cPosition: { left: 446, top: 18 },
     r1Position: { left: 0, top: 121 },
-    r2Position: { left: 580, top: 130 },
+    r2Position: { left: 689, top: 130 },
     speedPosition: { left: 310, top: 339 },
   },
   5: {
@@ -113,7 +118,7 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
     bPosition: { left: 390, top: -14 },
     cPosition: { left: 522, top: 18 },
     r1Position: { left: -5, top: 130 },
-    r2Position: { left: 580, top: 121 },
+    r2Position: { left: 695, top: 121 },
     speedPosition: { left: 395, top: 334 },
   },
   6: {
@@ -138,7 +143,7 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
     bPosition: { left: 130, top: -8 },
     cPosition: { left: 307, top: -8 },
     r1Position: { left: 1, top: 127 },
-    r2Position: { left: 600, top: 135 },
+    r2Position: { left: 681, top: 135 },
     speedPosition: { left: 345, top: 256 },
   },
   8: {
@@ -151,8 +156,8 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
     aPosition: { left: 365, top: 13 },
     bPosition: { left: 562, top: -13 },
     cPosition: { left: 452, top: 324 },
-    r1Position: { left: 130, top: 126 },
-    r2Position: { left: 120, top: 138 },
+    r1Position: { left: 689, top: 126 },
+    r2Position: { left: 0, top: 138 },
     speedPosition: { left: 292, top: 255 },
   },
   9: {
@@ -179,9 +184,9 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
     aPosition: { left: 420, top: 15 },
     bPosition: { left: 1000, top: 0 },
     cPosition: { left: 460, top: 129 },
-    r1Position: { left: 600, top: 125 },
+    r1Position: { left: 679, top: 125 },
     r2Position: { left: 1000, top: 0 },
-    speedPosition: { left: 60, top: 264 },
+    speedPosition: { left: 307, top: 264 },
   },
   11: {
     currentAnnotationLineGeometry:
@@ -190,12 +195,12 @@ const MODES_CONFIG: Record<number, AnnotationConfig> = {
       'M397,35 L600,35 M397,255 L553,255 M690,112 L690,204 M690,211 L690,280 M100,112 L100,280',
     currentAnnotationArrowGeometry:
       'M396,35 L400,32 L400,38 Z M601,35 L597,32 L597,38 Z M397,255 L401,258 L401,252 Z M554,255 L550,258 L550,252 Z M690,111 L687,115 L693,115 Z M690,205 L687,201 L693,201 Z M690,207 L687,211 L693,211 Z M690,282 L687,278 L693,278 Z M100,112 L103,116 L97,116 Z M100,281 L103,277 L97,277 Z',
-    aPosition: { left: 52, top: 600 },
+    aPosition: { left: 52, top: 174 },
     bPosition: { left: 671, top: 142 },
     cPosition: { left: 672, top: 224 },
-    r1Position: { left: 456, top: 400 },
+    r1Position: { left: 456, top: 15 },
     r2Position: { left: 423, top: 239 },
-    speedPosition: { left: 210, top: 337 },
+    speedPosition: { left: 345, top: 337 },
   }
 };
 

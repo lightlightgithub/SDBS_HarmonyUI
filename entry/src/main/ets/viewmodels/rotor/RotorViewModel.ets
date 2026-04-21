@@ -1,3 +1,4 @@
+// RotorViewModel
 import { RotorApiService } from '../../services/api/RotorApiService';
 import { PersistentConfig, CustomSelectOption, BaseModelInput } from '../../models/global';
 import { RotorSetModel } from '../../models/entity';
@@ -128,9 +129,11 @@ export class RotorViewModel {
       const resp = await this.rotorSetApiService.GetRotorList();
       if (resp.success && resp.respData) {
         this.rotorList = resp.respData;
+        console.log('loadRotorList success, count:', this.rotorList.length, 'data:', JSON.stringify(this.rotorList));
         return true;
       }
       this.errorMessage = resp.message || '加载转子列表失败';
+      console.error('loadRotorList failed:', resp.message);
       return false;
     } catch (e) {
       console.error('加载转子列表异常：', e);
@@ -171,6 +174,7 @@ export class RotorViewModel {
         operateType: this.operateType,
         model: this.buildModel()
       };
+      console.log('saveRotor req',JSON.stringify(req));
       const resp = await this.rotorSetApiService.RotorManage(req);
       if (resp.success) {
         // 重新加载列表
@@ -191,7 +195,7 @@ export class RotorViewModel {
         const getConfig = this.persistentService.getConfig();
         console.log('last rotor id',getConfig?.lastrotor);
         return true;
-        }else {
+      }else {
         this.errorMessage = resp.message || '保存失败';
         return false;
       }

@@ -28,6 +28,14 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      // 内容加载完成后最大化，EXIT_IMMERSIVE 保留系统标题栏 — ⊡ × 按钮
+      windowStage.getMainWindow().then((mainWindow: window.Window) => {
+        mainWindow.maximize(window.MaximizePresentation.EXIT_IMMERSIVE).catch((maximizeErr: Error) => {
+          hilog.error(DOMAIN, 'testTag', 'Failed to maximize window. Cause: %{public}s', JSON.stringify(maximizeErr));
+        });
+      }).catch((getErr: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'Failed to get main window. Cause: %{public}s', JSON.stringify(getErr));
+      });
     });
   }
 

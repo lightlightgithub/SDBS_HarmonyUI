@@ -32,6 +32,7 @@ export class AuthApiService {
   async login(req: LoginRequest): Promise<RespResult<boolean>> {
     const httpRequest = http.createHttp();
     try {
+      console.log('login',ApiConstants.BASE_URL + ApiConstants.LOGIN);
       const resp = await httpRequest.request(
         ApiConstants.BASE_URL + ApiConstants.LOGIN,
         {
@@ -42,6 +43,7 @@ export class AuthApiService {
           readTimeout: 10000,
         }
       );
+      console.log('login resp',resp);
       return JSON.parse(resp.result as string) as RespResult<boolean>;
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : 'login request failed');

@@ -1,6 +1,6 @@
 /**
- * LoginPage —— 登录页（路由入口）
- * 职责：UI 布局、用户事件转发给 LoginViewModel，不直接调用接口
+ * LoginPage —— 登录界面代码
+ * 用于账号选择、密码输入和登录操作。
  */
 import { LoginViewModel } from '../../viewmodels/auth/LoginViewModel';
 
