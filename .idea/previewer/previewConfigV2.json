@@ -51,12 +51,27 @@
     "orientation": "landscape",
     "language": "zh_CN",
     "colorMode": "light"
+   },
+   {
+    "id": "custom_2ini",
+    "deviceType": "2in1",
+    "foldable": false,
+    "width": 3000,
+    "height": 2080,
+    "foldWidth": 0,
+    "foldHeight": 0,
+    "shape": "rect",
+    "dpi": 304,
+    "orientation": "landscape",
+    "colorMode": "light",
+    "language": "zh_CN"
    }
   ],
   "runningProfileList": [
-   "2in1"
+   "custom_2ini"
   ],
   "availableProfileList": [
+   "2in1",
    "Phone",
    "Foldable",
    "Tablet"

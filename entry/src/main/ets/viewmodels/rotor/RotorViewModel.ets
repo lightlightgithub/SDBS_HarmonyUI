@@ -19,7 +19,7 @@ export class RotorViewModel {
   rotorR1: string = '';
   rotorR2: string = '';
   rotorSpeed: string = '';
-  zcfs: number = 2;
+  zcfs: number = 1;
   Jsms: number = 0;
   Clms: number = 0;
   plane1Allow: string = '';
