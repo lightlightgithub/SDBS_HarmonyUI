@@ -2,19 +2,9 @@ import { SupportConfig, MeasurementMode, Margin, SelectOption } from './RotorSup
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
 import { promptAction } from '@kit.ArkUI';
 
-// 模块级单例 VM —— 跨 Tab 切换保持数据不丢失
-let gRotorVm: RotorViewModel | null = null;
-function getSharedRotorVm(): RotorViewModel {
-  if (!gRotorVm) {
-    gRotorVm = new RotorViewModel();
-  }
-  return gRotorVm;
-}
-
 @Component
 export struct RotorSettingsPanel {
-  // 直接使用 ViewModel，不再重复定义表单变量
-  @State private vm: RotorViewModel = getSharedRotorVm();
+  @State private vm: RotorViewModel = new RotorViewModel();
   @State private isDataLoaded: boolean = false;
 
   // UI 相关状态
@@ -89,17 +79,14 @@ export struct RotorSettingsPanel {
 
   aboutToAppear(): void {
     SupportConfig.init();
-    console.log('aboutToAppear, vm.currentRotorId:', this.vm.currentRotorId);
-
-    if (this.vm.currentRotorId !== 0 || this.vm.rotorList.length > 0) {
-      // VM 已有数据，直接使用
+    if (this.vm.currentRotorId !== 0 && this.vm.rotorList.length > 0) {
       this.storedSupportMode = this.vm.zcfs;
       this.storedSupportJsms = this.vm.Jsms;
       this.loadMode(this.vm.zcfs);
       this.refreshRotorOptions();
+
       this.isDataLoaded = true;
     } else {
-      // 需要加载数据
       this.loadData();
     }
   }
@@ -115,6 +102,7 @@ export struct RotorSettingsPanel {
     this.refreshRotorOptions();
     this.isDataLoaded = true;
     console.log('loadData end, vm.rotorName:', this.vm.rotorName);
+
   }
 
   private refreshRotorOptions(): void {
@@ -124,23 +112,20 @@ export struct RotorSettingsPanel {
       this.rotorNameToIdMap.set(rotor.name, rotor.id);
       this.rotorSelectOptions.push({ value: rotor.name } as SelectOption);
     });
-  }
 
+  }
 
   // 切换转子
   async onRotorSelect(rotorName: string): Promise<void> {
-    console.log('onRotorSelect, rotorName:', rotorName);
     const rotorId = this.rotorNameToIdMap.get(rotorName);
-    if (rotorId !== undefined && rotorId > 0) {
+    if (rotorId) {
       const success = await this.vm.loadRotorById(rotorId);
       if (success) {
         this.storedSupportMode = this.vm.zcfs;
         this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
-        this.showToast('加载成功');
-      } else {
-        console.error('loadRotorById failed:', this.vm.errorMessage);
-        this.showToast('加载转子数据失败: ' + this.vm.errorMessage);
+        this.recalculateLayout(this.containerWidth, this.containerHeight);
+        setTimeout(() => this.drawLines(), 30);
       }
     }
   }
@@ -299,18 +284,13 @@ export struct RotorSettingsPanel {
   }
 
   private addRotor(): void {
-   // this.newRotorName = '';
-    //this.addDialogVisible = true;
-
-    // // 清空 ViewModel 数据
+    // 清空 ViewModel 数据
     this.vm.resetForm();
-    // 强制触发 UI 刷新，让输入框清空
     this.isDataLoaded = false;
     this.storedSupportMode = this.vm.zcfs;
     this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
-    // 重新加载数据，恢复页面显示
     setTimeout(() => {
       this.isDataLoaded = true;
       this.showToast('已新建转子，请输入参数后保存');
@@ -422,7 +402,6 @@ export struct RotorSettingsPanel {
     this.isoResult = `许用不平衡量：${u.toFixed(2)} g·mm`;
   }
 
-  // Builder 方法（保持原有弹窗实现，但修改为使用 vm 的数据）
   @Builder
   private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
     Column({ space: 2 }) {
@@ -487,10 +466,9 @@ export struct RotorSettingsPanel {
         .backgroundColor('#e6f3ff')
       } else {
         Flex({ direction: FlexDirection.Row, alignItems: ItemAlign.Stretch }) {
-          // 左侧表单区域 - 直接绑定 vm 的变量
+          // 左侧表单区域
           Column({ space: 26 }) {
             Row({ space: 10 }) {
-              // 转子名称
               Column() {
                 Text('转子名称').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 TextInput({ text: this.vm.rotorName })
@@ -499,7 +477,6 @@ export struct RotorSettingsPanel {
                   .onChange((v: string): void => { this.vm.rotorName = v; })
               }.layoutWeight(1)
 
-              // 解算模式
               Column() {
                 Text('解算模式').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 Select(this.balanceModeOptions)
@@ -515,7 +492,6 @@ export struct RotorSettingsPanel {
             }.width('100%')
 
             Row({ space: 10 }) {
-              // 尺寸单位
               Column() {
                 Text('尺寸单位').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 Select(this.unitOptions)
@@ -525,7 +501,6 @@ export struct RotorSettingsPanel {
                   .onSelect((_i: number, v: string): void => { this.vm.ccdw = v; })
               }.layoutWeight(1)
 
-              // 测量模式
               Column() {
                 Text('测量模式').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 Select(this.measureModeOptions)
@@ -537,7 +512,6 @@ export struct RotorSettingsPanel {
             }.width('100%')
 
             Row({ space: 10 }) {
-              // 允许量单位
               Column() {
                 Text('允许量单位').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 Select(this.allowUnitOptions)
@@ -547,7 +521,6 @@ export struct RotorSettingsPanel {
                   .onSelect((_i: number, v: string): void => { this.vm.yxldw = v; })
               }.layoutWeight(1)
 
-              // 平面一允许量
               Column() {
                 Text('平面一允许量').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 TextInput({ text: this.vm.plane1Allow })
@@ -558,7 +531,6 @@ export struct RotorSettingsPanel {
             }.width('100%')
 
             Row({ space: 10 }) {
-              // 静允许量
               Column() {
                 Text('静允许量').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 TextInput({ text: this.vm.staticAllow })
@@ -567,7 +539,6 @@ export struct RotorSettingsPanel {
                   .onChange((v: string): void => { this.vm.staticAllow = v; })
               }.layoutWeight(1)
 
-              // 平面二允许量
               Column() {
                 Text('平面二允许量').fontSize(16).fontColor('#555').margin({ bottom: 8 })
                 TextInput({ text: this.vm.plane2Allow })
@@ -600,49 +571,155 @@ export struct RotorSettingsPanel {
 
             Stack({ alignContent: Alignment.TopStart }) {
               if (this.displayWidth > 0 && this.displayHeight > 0) {
+                // 背景图片
                 Image($rawfile(this.currentModeImage))
-                  .width(this.displayWidth).height(this.displayHeight)
+                  .width(this.displayWidth)
+                  .height(this.displayHeight)
                   .objectFit(ImageFit.Fill)
                   .position({ x: this.offsetX, y: this.offsetY })
                   .zIndex(1)
 
+                // 画布
                 Canvas(this.mainCanvasCtx)
-                  .width(this.canvasWidth).height(this.canvasHeight)
+                  .width(this.canvasWidth)
+                  .height(this.canvasHeight)
                   .position({ x: this.canvasOffsetX, y: this.canvasOffsetY })
                   .backgroundColor(Color.Transparent)
-                  .onReady((): void => {
-                    this.mainCanvasReady = true;
-                    this.drawAllLinesIfReady();
+                  .onReady(() => {
+                    this.mainCanvasReady = true
+                    this.drawAllLinesIfReady()
                   })
                   .zIndex(2)
 
                 Canvas(this.inCanvasCtx)
-                  .width(this.canvasWidth).height(this.canvasHeight)
+                  .width(this.canvasWidth)
+                  .height(this.canvasHeight)
                   .position({ x: this.canvasOffsetX, y: this.canvasOffsetY })
                   .backgroundColor(Color.Transparent)
-                  .onReady((): void => {
-                    this.inCanvasReady = true;
-                    this.drawAllLinesIfReady();
+                  .onReady(() => {
+                    this.inCanvasReady = true
+                    this.drawAllLinesIfReady()
                   })
                   .zIndex(3)
 
                 Canvas(this.arrowCanvasCtx)
-                  .width(this.canvasWidth).height(this.canvasHeight)
+                  .width(this.canvasWidth)
+                  .height(this.canvasHeight)
                   .position({ x: this.canvasOffsetX, y: this.canvasOffsetY })
                   .backgroundColor(Color.Transparent)
-                  .onReady((): void => {
-                    this.arrowCanvasReady = true;
-                    this.drawAllLinesIfReady();
+                  .onReady(() => {
+                    this.arrowCanvasReady = true
+                    this.drawAllLinesIfReady()
                   })
                   .zIndex(4)
 
-                // 参数输入框 - 直接绑定 vm 的变量
-                this.renderParamInput('A', this.vm.rotorA, (v: string): void => { this.vm.rotorA = v; }, this.aPos)
-                this.renderParamInput('B', this.vm.rotorB, (v: string): void => { this.vm.rotorB = v; }, this.bPos)
-                this.renderParamInput('C', this.vm.rotorC, (v: string): void => { this.vm.rotorC = v; }, this.cPos)
-                this.renderParamInput('R1', this.vm.rotorR1, (v: string): void => { this.vm.rotorR1 = v; }, this.r1Pos)
-                this.renderParamInput('R2', this.vm.rotorR2, (v: string): void => { this.vm.rotorR2 = v; }, this.r2Pos)
-                this.renderParamInput('转速', this.vm.rotorSpeed, (v: string): void => { this.vm.rotorSpeed = v; }, this.speedPos)
+                // ========== 输入框 A ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorA })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorA = v)
+                  Text('A')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.aPos)
+                .zIndex(100)
+
+                // ========== 输入框 B ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorB })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorB = v)
+                  Text('B')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.bPos)
+                .zIndex(100)
+
+                // ========== 输入框 C ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorC })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorC = v)
+                  Text('C')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.cPos)
+                .zIndex(100)
+
+                // ========== 输入框 R1 ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorR1 })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorR1 = v)
+                  Text('R1')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.r1Pos)
+                .zIndex(100)
+
+                // ========== 输入框 R2 ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorR2 })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorR2 = v)
+                  Text('R2')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.r2Pos)
+                .zIndex(100)
+
+                // ========== 输入框 转速 ==========
+                Column({ space: 2 }) {
+                  TextInput({ text: this.vm.rotorSpeed })
+                    .width(65)
+                    .height(40)
+                    .borderRadius(20)
+                    .backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' })
+                    .fontSize(14)
+                    .textAlign(TextAlign.Center)
+                    .onChange(v => this.vm.rotorSpeed = v)
+                  Text('转速')
+                    .fontSize(14)
+                    .fontColor('#333')
+                }
+                .position(this.speedPos)
+                .zIndex(100)
               }
             }
             .width('100%')
@@ -722,7 +799,7 @@ export struct RotorSettingsPanel {
     .height('100%')
   }
 
-  // 弹窗 Builder 方法（保持原有实现）
+  // 弹窗 Builder 方法
   @Builder
   private renderSupportDialog() {
     Stack({ alignContent: Alignment.Center }) {
