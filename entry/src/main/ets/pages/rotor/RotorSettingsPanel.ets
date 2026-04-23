@@ -4,9 +4,9 @@ import { promptAction } from '@kit.ArkUI';
 
 @Component
 export struct RotorSettingsPanel {
+
   @State private vm: RotorViewModel = new RotorViewModel();
   @State private isDataLoaded: boolean = false;
-
   // UI 相关状态
   @State private currentMode: MeasurementMode | null = null;
   @State private currentModeImage: string = 'image/rotor/rtsetmodel1.png';
@@ -46,7 +46,7 @@ export struct RotorSettingsPanel {
   @State private isoDialogVisible: boolean = false;
   @State private isoGrade: string = '6.3';
   @State private isoSpeed: string = '1000';
-  @State private isoMass: string = '10';
+  @State private isoWeight: string = '10';
   @State private isoResult: string = '';
   @State private addDialogVisible: boolean = false;
   @State private newRotorName: string = '';
@@ -90,7 +90,6 @@ export struct RotorSettingsPanel {
       this.loadData();
     }
   }
-
   async loadData(): Promise<void> {
     console.log('loadData start');
     await this.vm.initAsync();
@@ -272,13 +271,20 @@ export struct RotorSettingsPanel {
         this.storedSupportMode = this.vm.zcfs;
         this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
-        this.showToast('保存成功');
+
+         promptAction.showDialog({
+            title: '提示',
+            message: '                           保存成功    ',
+           buttons: [
+              { text: '确定', color: '#007AFF' }
+            ]
+          });
+        //this.showToast('保存成功');
       } else {
         promptAction.showToast({ message: this.vm.errorMessage });
       }
     });
   }
-
   private deleteRotor(): void {
     this.deleteDialogVisible = true;
   }
@@ -391,15 +397,35 @@ export struct RotorSettingsPanel {
   }
 
   private calcISO(): void {
-    const g = parseFloat(this.isoGrade);
-    const n = parseFloat(this.isoSpeed);
-    const m = parseFloat(this.isoMass);
-    if (isNaN(g) || isNaN(n) || isNaN(m) || n <= 0) {
+    const isoGrade = parseFloat(this.isoGrade);
+    const isoSpeed = parseFloat(this.isoSpeed);
+    const isoWeight = parseFloat(this.isoWeight);
+    if (isNaN(isoGrade) || isNaN(isoSpeed) || isNaN(isoWeight) || isoSpeed <= 0) {
       this.isoResult = '请输入有效数值';
+      setTimeout(() => {
+        this.isoResult = '';
+      }, 5000);
       return;
     }
-    const u = g * 9549.0 / n * m;
-    this.isoResult = `许用不平衡量：${u.toFixed(2)} g·mm`;
+    const r1 = parseFloat(this.vm.rotorR1);
+    const r2 = parseFloat(this.vm.rotorR2);
+    if (r1 != 0 && isoSpeed != 0)
+      this.vm.plane1Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r1).toFixed(3).toString();
+    else
+      this.vm.plane1Allow = "0";
+    if (r2 != 0 && isoSpeed != 0)
+      this.vm.plane2Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r2).toFixed(3).toString();
+    else
+      this.vm.plane2Allow = "0";
+    this.vm.staticAllow = (parseFloat(this.vm.plane1Allow) + parseFloat(this.vm.plane2Allow)).toString();
+
+    this.isoResult = '计算完成';
+    setTimeout(() => {
+      if (this.isoResult === '计算完成') {
+        this.isoResult = '';
+      }
+    }, 5000);
+    return;
   }
 
   @Builder
@@ -981,9 +1007,9 @@ export struct RotorSettingsPanel {
 
           Column({ space: 6 }) {
             Text('工件重量 (KG)').fontSize(15).fontColor('#555')
-            TextInput({ text: this.isoMass }).width('100%').height(48).backgroundColor('#ccebff')
+            TextInput({ text: this.isoWeight }).width('100%').height(48).backgroundColor('#ccebff')
               .border({ width: 0 }).borderRadius(8).fontSize(15)
-              .onChange((v: string): void => { this.isoMass = v })
+              .onChange((v: string): void => { this.isoWeight = v })
           }.alignItems(HorizontalAlign.Start).width('100%')
 
           if (this.isoResult !== '') {

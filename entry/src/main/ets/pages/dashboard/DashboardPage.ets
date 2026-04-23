@@ -6,7 +6,6 @@
 import { SupportConfig, MeasurementMode, Margin, SelectOption } from '../rotor/RotorSupportConfig';
 import { RotorSettingsPanel } from '../rotor/RotorSettingsPanel';
 import { PersistentService } from '../../services/storage/PersistentService';
-import { PersistentConfig } from '../../models/global';
 /** 工具栏按钮描述（NavItem 避免与 ArkUI 内置 ToolbarItem 冲突） */
 interface NavItem {
   id: string;      // 模块唯一标识
