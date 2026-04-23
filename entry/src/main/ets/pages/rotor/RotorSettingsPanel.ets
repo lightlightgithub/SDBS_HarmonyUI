@@ -427,7 +427,11 @@ export struct RotorSettingsPanel {
     }, 5000);
     return;
   }
-
+  private saveIndexSettings(): void {
+    // 这里可以添加保存分度设定的逻辑
+    this.indexDialogVisible = false
+    this.showToast('分度设定已保存')
+  }
   @Builder
   private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
     Column({ space: 2 }) {
@@ -903,71 +907,81 @@ export struct RotorSettingsPanel {
           .onClick(() => { this.indexDialogVisible = false })
         }.width('100%').alignItems(VerticalAlign.Center)
 
-        Grid() {
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('平面1起始角度').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexAngle1 }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexAngle1 = v })
-            }.alignItems(HorizontalAlign.Start)
+        // 用 Scroll 包裹 Grid
+        Scroll() {
+          Grid() {
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('平面1起始角度').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexAngle1 }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexAngle1 = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('平面1分度数量').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexNumber1 }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexNumber1 = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('平面2起始角度').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexAngle2 }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexAngle2 = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('平面2分度数量').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexNumber2 }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexNumber2 = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('静平面起始角度').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexAngleS }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexAngleS = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
+            GridItem() {
+              Column({ space: 6 }) {
+                Text('静平面分度数量').fontSize(15).fontColor('#555')
+                TextInput({ text: this.indexNumberS }).width('100%').height(44).backgroundColor('#ccebff')
+                  .border({ width: 0 }).borderRadius(8).fontSize(15)
+                  .onChange((v: string): void => { this.indexNumberS = v })
+              }.alignItems(HorizontalAlign.Start)
+            }
           }
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('平面1分度数量').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexNumber1 }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexNumber1 = v })
-            }.alignItems(HorizontalAlign.Start)
-          }
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('平面2起始角度').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexAngle2 }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexAngle2 = v })
-            }.alignItems(HorizontalAlign.Start)
-          }
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('平面2分度数量').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexNumber2 }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexNumber2 = v })
-            }.alignItems(HorizontalAlign.Start)
-          }
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('静平面起始角度').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexAngleS }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexAngleS = v })
-            }.alignItems(HorizontalAlign.Start)
-          }
-          GridItem() {
-            Column({ space: 6 }) {
-              Text('静平面分度数量').fontSize(15).fontColor('#555')
-              TextInput({ text: this.indexNumberS }).width('100%').height(44).backgroundColor('#ccebff')
-                .border({ width: 0 }).borderRadius(8).fontSize(15)
-                .onChange((v: string): void => { this.indexNumberS = v })
-            }.alignItems(HorizontalAlign.Start)
-          }
+          .columnsTemplate('1fr 1fr')
+          .columnsGap(16)
+          .rowsGap(14)
+          .width('100%')
         }
-        .columnsTemplate('1fr 1fr').columnsGap(16).rowsGap(14).width('100%')
+        .width('100%')
+        .constraintSize({ maxHeight: 400 })  // 限制最大高度
 
         Row() {
           Blank().layoutWeight(1)
           Button('保存').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => {
-              this.indexDialogVisible = false
-              this.showToast('分度设定已保存')
-            })
+            .onClick(() => { this.saveIndexSettings() })
         }.width('100%').padding({ top: 4 })
       }
-      .width('58%').padding({ left: 28, right: 28, top: 22, bottom: 22 })
-      .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
+      .width('58%')
+      .padding({ left: 28, right: 28, top: 22, bottom: 22 })
+      .backgroundColor('#e6f3ff')
+      .borderRadius(14)
+      .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
     }
-    .width('100%').height('100%').zIndex(20)
+    .width('100%')
+    .height('100%')
+    .zIndex(20)
   }
 
   @Builder
