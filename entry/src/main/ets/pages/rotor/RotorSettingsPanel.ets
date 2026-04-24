@@ -1,6 +1,8 @@
 import { SupportConfig, MeasurementMode, Margin, SelectOption } from './RotorSupportConfig';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
-import { promptAction } from '@kit.ArkUI';
+import {
+  SupportDialog, IndexDialog, ISODialog, DeleteDialog, TipDialog
+} from './RotorDialogs';
 
 @Component
 export struct RotorSettingsPanel {
@@ -29,21 +31,16 @@ export struct RotorSettingsPanel {
   @State private r1Pos: Margin = { left: 0, top: 0 };
   @State private r2Pos: Margin = { left: 0, top: 0 };
   @State private speedPos: Margin = { left: 0, top: 0 };
-  // 转子选项 - 改为 @State 变量
+  // 转子选项
   @State private rotorSelectOptions: SelectOption[] = [];
   private rotorNameToIdMap: Map<string, number> = new Map();
-  // 弹窗相关状态
+  // 弹窗状态
   @State private supportDialogVisible: boolean = false;
-  @State private supportDialogMode: number = 2;
-  @State private supportDialogJsms: number = 0;
   @State private indexDialogVisible: boolean = false;
   @State private isoDialogVisible: boolean = false;
-
-  @State private addDialogVisible: boolean = false;
-  @State private newRotorName: string = '';
   @State private deleteDialogVisible: boolean = false;
-  @State private tipDialogVisible: boolean = false; // 成功提示弹窗
-  @State private tipMessage: string = ""; // 提示弹框内容
+  @State private tipDialogVisible: boolean = false;
+  @State private tipMessage: string = '';
 
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
   private inCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -52,7 +49,6 @@ export struct RotorSettingsPanel {
   private inCanvasReady: boolean = false;
   private arrowCanvasReady: boolean = false;
   private resizeTimer: number = -1;
-  private supportVideoController: VideoController = new VideoController();
 
   // 选项配置
   private balanceModeOptions: SelectOption[] = [{ value: '硬支撑' }, { value: '软支撑' }];
@@ -66,26 +62,19 @@ export struct RotorSettingsPanel {
   ];
   private allowUnitOptions: SelectOption[] = [{ value: 'g' }, { value: 'mg' }, { value: 'g·mm' }, { value: 'g·cm' }];
 
-  @StorageLink('rotorSupportSelectedMode') private storedSupportMode: number = 2;
-  @StorageLink('rotorSupportJsms') private storedSupportJsms: number = 0;
-
   aboutToAppear(): void {
     SupportConfig.init();
     if (this.vm.currentRotorId !== 0 && this.vm.rotorList.length > 0) {
-      this.storedSupportMode = this.vm.zcfs;
-      this.storedSupportJsms = this.vm.Jsms;
       this.loadMode(this.vm.zcfs);
       this.refreshRotorOptions();
-
       this.isDataLoaded = true;
     } else {
       this.loadData();
     }
   }
+
   async loadData(): Promise<void> {
     await this.vm.initAsync();
-    this.storedSupportMode = this.vm.zcfs;
-    this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
     this.isDataLoaded = true;
@@ -98,17 +87,13 @@ export struct RotorSettingsPanel {
       this.rotorNameToIdMap.set(rotor.name, rotor.id);
       this.rotorSelectOptions.push({ value: rotor.name } as SelectOption);
     });
-
   }
 
-  // 切换转子
   async onRotorSelect(rotorName: string): Promise<void> {
     const rotorId = this.rotorNameToIdMap.get(rotorName);
     if (rotorId) {
       const success = await this.vm.loadRotorById(rotorId);
       if (success) {
-        this.storedSupportMode = this.vm.zcfs;
-        this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
         this.recalculateLayout(this.containerWidth, this.containerHeight);
         setTimeout(() => this.drawLines(), 30);
@@ -251,111 +236,47 @@ export struct RotorSettingsPanel {
     ctx.restore();
   }
 
-  //保存
+  // 业务方法
   private saveSettings(): void {
     this.vm.saveRotor().then(ok => {
       if (ok) {
         this.refreshRotorOptions();
-        this.storedSupportMode = this.vm.zcfs;
-        this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
       }
-      this.showSuccessDialog(this.vm.tipMessage);
+      this.showTip(this.vm.tipMessage);
     });
   }
+
   private deleteRotor(): void {
     this.deleteDialogVisible = true;
   }
-  //新增
+
   private addRotor(): void {
-    // 清空 ViewModel 数据
     this.vm.resetForm();
     this.isDataLoaded = false;
-    this.storedSupportMode = this.vm.zcfs;
-    this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
     setTimeout(() => {
       this.isDataLoaded = true;
-      this.showSuccessDialog('已重置转子表单，请输入参数后保存');
+      this.showTip('已重置转子表单，请输入参数后保存');
     }, 50);
   }
 
-  //确认删除
   private confirmDelete(): void {
     this.deleteDialogVisible = false;
     this.vm.deleteRotor().then(ok => {
       this.refreshRotorOptions();
       if (!ok) {
-        this.showSuccessDialog(this.vm.tipMessage);
+        this.showTip(this.vm.tipMessage);
       } else {
-        this.showSuccessDialog('转子已删除');
-        this.storedSupportMode = this.vm.zcfs;
-        this.storedSupportJsms = this.vm.Jsms;
+        this.showTip('转子已删除');
         this.loadMode(this.vm.zcfs);
       }
     });
   }
 
-  private confirmAddRotor(): void {
-    if (this.newRotorName.trim().length === 0) {
-      this.showSuccessDialog('请输入转子名称');
-      return;
-    }
-    this.vm.rotorName = this.newRotorName;
-    this.vm.selectRotor = this.newRotorName;
-    this.addDialogVisible = false;
-    this.showSuccessDialog('新增转子成功，请点击保存');
-  }
-
   private openSupportWindow(): void {
-    this.storedSupportMode = this.vm.zcfs;
-    this.storedSupportJsms = this.vm.Jsms;
-    this.supportDialogMode = this.vm.zcfs;
-    this.supportDialogJsms = this.storedSupportJsms;
     this.supportDialogVisible = true;
-  }
-
-  private confirmSupportDialog(): void {
-    this.vm.zcfs = this.supportDialogMode;
-    this.vm.Jsms = this.supportDialogJsms;
-    this.vm.balanceMode = this.supportDialogJsms === 0 ? '硬支撑' : '软支撑';
-    this.storedSupportMode = this.supportDialogMode;
-    this.storedSupportJsms = this.supportDialogJsms;
-    this.loadMode(this.supportDialogMode);
-    this.supportDialogVisible = false;
-  }
-
-  private getFilteredSupportModes(): number[] {
-    const all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-    if (this.supportDialogJsms === 1) {
-      return all.filter((i: number): boolean => ![2, 4, 5, 7, 8, 9, 10].includes(i));
-    }
-    return all;
-  }
-
-  private switchSupportDialogMode(modeId: number): void {
-    if (this.supportDialogMode === modeId) return;
-    try {
-      this.supportVideoController.pause();
-    } catch (e) {}
-    this.supportDialogMode = modeId;
-    try {
-      this.supportVideoController.stop();
-    } catch (e) {}
-    setTimeout((): void => {
-      try {
-        this.supportVideoController.start();
-      } catch (e) {}
-    }, 100);
-  }
-
-  private closeSupportDialog(): void {
-    try {
-      this.supportVideoController.pause();
-      this.supportVideoController.stop();
-    } catch (e) {}
-    this.supportDialogVisible = false;
   }
 
   private openIndexDialog(): void {
@@ -366,29 +287,14 @@ export struct RotorSettingsPanel {
     this.vm.tipMessage = '';
     this.isoDialogVisible = true;
   }
-  // 显示成功弹窗（可传消息）
-  private showSuccessDialog(message: string): void {
+
+  private showTip(message: string): void {
     this.tipMessage = message;
     this.tipDialogVisible = true;
   }
-  @Builder
-  private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
-    Column({ space: 2 }) {
-      TextInput({ text: value })
-        .width(65)
-        .height(40)
-        .borderRadius(20)
-        .backgroundColor('#ffffff')
-        .border({ width: 1, color: '#00aaff' })
-        .fontSize(14)
-        .textAlign(TextAlign.Center)
-        .onChange((val: string): void => { onChange(val); });
-      Text(label)
-        .fontSize(14)
-        .fontColor('#333');
-    }
-    .position({ x: pos.left, y: pos.top })
-    .zIndex(100);
+
+  private closeTip(): void {
+    this.tipDialogVisible = false;
   }
 
   @Builder
@@ -455,7 +361,6 @@ export struct RotorSettingsPanel {
                   .onSelect((_i: number, v: string): void => {
                     this.vm.balanceMode = v;
                     this.vm.Jsms = v === '硬支撑' ? 0 : 1;
-                    this.storedSupportJsms = this.vm.Jsms;
                   })
               }.layoutWeight(1)
             }.width('100%')
@@ -540,7 +445,6 @@ export struct RotorSettingsPanel {
 
             Stack({ alignContent: Alignment.TopStart }) {
               if (this.displayWidth > 0 && this.displayHeight > 0) {
-                // 背景图片
                 Image($rawfile(this.currentModeImage))
                   .width(this.displayWidth)
                   .height(this.displayHeight)
@@ -548,7 +452,6 @@ export struct RotorSettingsPanel {
                   .position({ x: this.offsetX, y: this.offsetY })
                   .zIndex(1)
 
-                // 画布
                 Canvas(this.mainCanvasCtx)
                   .width(this.canvasWidth)
                   .height(this.canvasHeight)
@@ -582,113 +485,54 @@ export struct RotorSettingsPanel {
                   })
                   .zIndex(4)
 
-                // ========== 输入框 A ==========
+                // 输入框组件
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorA })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorA = v)
-                  Text('A')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.aPos)
-                .zIndex(100)
+                  Text('A').fontSize(14).fontColor('#333')
+                }.position(this.aPos).zIndex(100)
 
-                // ========== 输入框 B ==========
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorB })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorB = v)
-                  Text('B')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.bPos)
-                .zIndex(100)
+                  Text('B').fontSize(14).fontColor('#333')
+                }.position(this.bPos).zIndex(100)
 
-                // ========== 输入框 C ==========
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorC })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorC = v)
-                  Text('C')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.cPos)
-                .zIndex(100)
+                  Text('C').fontSize(14).fontColor('#333')
+                }.position(this.cPos).zIndex(100)
 
-                // ========== 输入框 R1 ==========
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorR1 })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorR1 = v)
-                  Text('R1')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.r1Pos)
-                .zIndex(100)
+                  Text('R1').fontSize(14).fontColor('#333')
+                }.position(this.r1Pos).zIndex(100)
 
-                // ========== 输入框 R2 ==========
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorR2 })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorR2 = v)
-                  Text('R2')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.r2Pos)
-                .zIndex(100)
+                  Text('R2').fontSize(14).fontColor('#333')
+                }.position(this.r2Pos).zIndex(100)
 
-                // ========== 输入框 转速 ==========
                 Column({ space: 2 }) {
                   TextInput({ text: this.vm.rotorSpeed })
-                    .width(65)
-                    .height(40)
-                    .borderRadius(20)
-                    .backgroundColor('#ffffff')
-                    .border({ width: 1, color: '#00aaff' })
-                    .fontSize(14)
-                    .textAlign(TextAlign.Center)
+                    .width(65).height(40).borderRadius(20).backgroundColor('#ffffff')
+                    .border({ width: 1, color: '#00aaff' }).fontSize(14).textAlign(TextAlign.Center)
                     .onChange(v => this.vm.rotorSpeed = v)
-                  Text('转速')
-                    .fontSize(14)
-                    .fontColor('#333')
-                }
-                .position(this.speedPos)
-                .zIndex(100)
+                  Text('转速').fontSize(14).fontColor('#333')
+                }.position(this.speedPos).zIndex(100)
               }
             }
             .width('100%')
@@ -747,373 +591,60 @@ export struct RotorSettingsPanel {
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
       }
 
-      // 弹窗
+      // 弹窗 - 使用条件渲染
       if (this.supportDialogVisible) {
-        this.renderSupportDialog()
+        SupportDialog({
+          initialMode: this.vm.zcfs,
+          initialJsms: this.vm.Jsms,
+          onConfirm: (mode: number, jsms: number) => {
+            // 直接更新 ViewModel
+            console.log('SupportDialog mode',mode);
+            this.vm.zcfs = mode;
+            this.vm.Jsms = jsms;
+            this.vm.balanceMode = jsms === 0 ? '硬支撑' : '软支撑';
+            this.loadMode(mode);
+          },
+          onClose: () => {
+            this.supportDialogVisible = false;
+          }
+        })
       }
+
       if (this.indexDialogVisible) {
-        this.renderIndexDialog()
+        IndexDialog({
+          vm: this.vm,
+          onClose: () => {
+            this.indexDialogVisible = false;
+            this.showTip("保存成功");
+          }
+        })
       }
+
       if (this.isoDialogVisible) {
-        this.renderISODialog()
+        ISODialog({
+          vm: this.vm,
+          onClose: () => {
+            this.isoDialogVisible = false;
+            this.showTip(this.vm.tipMessage);
+          }
+        })
       }
-      if (this.addDialogVisible) {
-        this.renderAddDialog()
-      }
+
       if (this.deleteDialogVisible) {
-        this.renderDeleteDialog()
+        DeleteDialog({
+          onConfirm: () => this.confirmDelete(),
+          onCancel: () => this.deleteDialogVisible = false
+        })
       }
+
       if (this.tipDialogVisible) {
-        this.renderSuccessDialog()
+        TipDialog({
+          message: this.tipMessage,
+          onClose: () => this.closeTip()
+        })
       }
     }
     .width('100%')
     .height('100%')
-  }
-
-  // 弹窗 Builder 方法
-  @Builder
-  private renderSupportDialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width('100%').height('100%').backgroundColor('rgba(0,0,0,0.18)').onClick(() => this.closeSupportDialog())
-
-      Column({ space: 14 }) {
-        Row() {
-          Text('请选择支撑方式').fontSize(20).fontWeight(FontWeight.Medium).fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png')).width(18).height(18).objectFit(ImageFit.Contain)
-          }
-          .width(34).height(34).padding(0).backgroundColor(Color.Transparent).border({ width: 0 }).borderRadius(0)
-          .onClick(() => this.closeSupportDialog())
-        }.width('100%').alignItems(VerticalAlign.Center)
-
-        Row({ space: 18 }) {
-          Column() {
-            Grid() {
-              ForEach(this.getFilteredSupportModes(), (i: number) => {
-                GridItem() {
-                  Column({ space: 8 }) {
-                    Image($r(`app.media.supportmodel${i}`)).width(146).height(118).objectFit(ImageFit.Contain)
-                    Text(`模式${i}`).fontSize(16).fontColor('#222')
-                  }
-                  .width('100%').padding({ left: 8, right: 8, top: 10, bottom: 10 })
-                  .backgroundColor(this.supportDialogMode === i ? '#ccebff' : '#ffffff')
-                  .border({
-                    width: this.supportDialogMode === i ? 2 : 1,
-                    color: this.supportDialogMode === i ? '#0099ff' : '#d6dee8'
-                  }).borderRadius(8)
-                  .onClick(() => this.switchSupportDialogMode(i))
-                }
-              })
-            }
-            .columnsTemplate('1fr 1fr 1fr 1fr').columnsGap(10).rowsGap(10).width('100%').layoutWeight(1)
-          }
-          .width('60%').height('100%').padding({ top: 4, bottom: 4, left: 4, right: 4 }).backgroundColor('#e6f3ff')
-
-          Column() {
-            Video({
-              src: $rawfile(`videomodel${this.supportDialogMode}.mp4`),
-              controller: this.supportVideoController
-            })
-              .width('100%').height('100%').autoPlay(true).loop(true).muted(true).controls(false).objectFit(ImageFit.Cover)
-          }
-          .width('40%').height('100%').backgroundColor('#d8edf7').borderRadius(6).clip(true).justifyContent(FlexAlign.Center)
-        }.width('100%').layoutWeight(1)
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('确认').width(98).height(44).backgroundColor('#44b7ff').fontColor('#ffffff').fontSize(18).borderRadius(6)
-            .onClick(() => this.confirmSupportDialog())
-        }.width('100%').padding({ top: 6, bottom: 4 })
-      }
-      .width('94%').height('88%').padding({ left: 24, right: 24, top: 18, bottom: 18 })
-      .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%').height('100%').zIndex(20)
-  }
-
-  @Builder
-  private renderIndexDialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width('100%').height('100%').backgroundColor('rgba(0,0,0,0.18)').onClick(() => { this.indexDialogVisible = false })
-
-      Column({ space: 16 }) {
-        Row() {
-          Text('分度设定').fontSize(20).fontWeight(FontWeight.Medium).fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png')).width(18).height(18).objectFit(ImageFit.Contain)
-          }
-          .width(34).height(34).padding(0).backgroundColor(Color.Transparent).border({ width: 0 }).borderRadius(0)
-          .onClick(() => { this.indexDialogVisible = false })
-        }.width('100%').alignItems(VerticalAlign.Center)
-
-        // 用 Scroll 包裹 Grid
-        Scroll() {
-          Grid() {
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('平面1起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexAngle1 }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexAngle1 = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('平面1分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexNumber1 }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexNumber1 = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('平面2起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexAngle2 }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexAngle2 = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('平面2分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexNumber2 }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexNumber2 = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('静平面起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexAngleS }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexAngleS = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-            GridItem() {
-              Column({ space: 6 }) {
-                Text('静平面分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.vm.indexNumberS }).width('100%').height(44).backgroundColor('#ccebff')
-                  .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.vm.indexNumberS = v })
-              }.alignItems(HorizontalAlign.Start)
-            }
-          }
-          .columnsTemplate('1fr 1fr')
-          .columnsGap(16)
-          .rowsGap(14)
-          .width('100%')
-        }
-        .width('100%')
-        .constraintSize({ maxHeight: 400 })  // 限制最大高度
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('保存').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => {
-              this.vm.saveIndexSettings();
-              this.indexDialogVisible = false; // 关闭弹窗
-              this.showSuccessDialog("保存成功");
-            })
-        }.width('100%').padding({ top: 4 })
-      }
-      .width('58%')
-      .padding({ left: 28, right: 28, top: 22, bottom: 22 })
-      .backgroundColor('#e6f3ff')
-      .borderRadius(14)
-      .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%')
-    .height('100%')
-    .zIndex(20)
-  }
-
-  @Builder
-  private renderISODialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width('100%').height('100%').backgroundColor('rgba(0,0,0,0.18)').onClick(() => { this.isoDialogVisible = false })
-
-      Column({ space: 18 }) {
-        Row() {
-          Text('ISO公差计算').fontSize(20).fontWeight(FontWeight.Medium).fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png')).width(18).height(18).objectFit(ImageFit.Contain)
-          }
-          .width(34).height(34).padding(0).backgroundColor(Color.Transparent).border({ width: 0 }).borderRadius(0)
-          .onClick(() => { this.isoDialogVisible = false })
-        }.width('100%').alignItems(VerticalAlign.Center)
-
-        Column({ space: 14 }) {
-          Column({ space: 6 }) {
-            Text('平衡等级 (G)').fontSize(15).fontColor('#555')
-            Select([
-              { value: '0.4' }, { value: '1' }, { value: '2.5' }, { value: '6.3' },
-              { value: '16' }, { value: '40' }, { value: '100' }, { value: '250' },
-              { value: '630' }, { value: '1600' }, { value: '4000' }
-            ]).value(this.vm.isoGrade).width('100%').height(48).backgroundColor('#ccebff')
-              .border({ width: 0 }).borderRadius(8).font({ size: 15 })
-              .onSelect((_i: number, v: string): void => { this.vm.isoGrade = v })
-          }.alignItems(HorizontalAlign.Start).width('100%')
-
-          Column({ space: 6 }) {
-            Text('工作转速 (r/min)').fontSize(15).fontColor('#555')
-            TextInput({ text: this.vm.isoSpeed }).width('100%').height(48).backgroundColor('#ccebff')
-              .border({ width: 0 }).borderRadius(8).fontSize(15)
-              .onChange((v: string): void => { this.vm.isoSpeed = v })
-          }.alignItems(HorizontalAlign.Start).width('100%')
-
-          Column({ space: 6 }) {
-            Text('工件重量 (KG)').fontSize(15).fontColor('#555')
-            TextInput({ text: this.vm.isoWeight }).width('100%').height(48).backgroundColor('#ccebff')
-              .border({ width: 0 }).borderRadius(8).fontSize(15)
-              .onChange((v: string): void => { this.vm.isoWeight = v })
-          }.alignItems(HorizontalAlign.Start).width('100%')
-
-         /* if (this.vm.tipMessage !== '') {
-            Text(this.vm.tipMessage).fontSize(17).fontColor('#0066cc').fontWeight(FontWeight.Medium).padding({ top: 4, bottom: 4 })
-          }*/
-        }.width('100%')
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('计算').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => {
-              this.vm.calcISO()
-              this.isoDialogVisible = false;
-              this.showSuccessDialog(this.vm.tipMessage);
-            })
-        }.width('100%').padding({ top: 4 })
-      }
-      .width('46%').padding({ left: 28, right: 28, top: 22, bottom: 22 })
-      .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%').height('100%').zIndex(20)
-  }
-
-  @Builder
-  private renderAddDialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width('100%').height('100%').backgroundColor('rgba(0,0,0,0.18)').onClick(() => { this.addDialogVisible = false })
-
-      Column({ space: 20 }) {
-        Row() {
-          Text('新增转子').fontSize(20).fontWeight(FontWeight.Medium).fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png')).width(18).height(18).objectFit(ImageFit.Contain)
-          }
-          .width(34).height(34).padding(0).backgroundColor(Color.Transparent).border({ width: 0 }).borderRadius(0)
-          .onClick(() => { this.addDialogVisible = false })
-        }.width('100%').alignItems(VerticalAlign.Center)
-
-        Column({ space: 6 }) {
-          Text('转子名称').fontSize(15).fontColor('#555')
-          TextInput({ placeholder: '请输入转子名称', text: this.newRotorName })
-            .width('100%').height(50).backgroundColor('#ccebff')
-            .border({ width: 0 }).borderRadius(8).fontSize(16)
-            .onChange((v: string): void => { this.newRotorName = v })
-        }.alignItems(HorizontalAlign.Start).width('100%')
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('确认').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => this.confirmAddRotor())
-        }.width('100%').padding({ top: 4 })
-      }
-      .width('44%').padding({ left: 28, right: 28, top: 22, bottom: 22 })
-      .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%').height('100%').zIndex(20)
-  }
-
-  @Builder
-  private renderDeleteDialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width('100%').height('100%').backgroundColor('rgba(0,0,0,0.18)').onClick(() => { this.deleteDialogVisible = false })
-
-      Column({ space: 22 }) {
-        Text('删除确认').fontSize(20).fontWeight(FontWeight.Medium).fontColor('#333').width('100%')
-        Text('确认删除当前转子？此操作不可撤销。').fontSize(16).fontColor('#555').width('100%')
-
-        Row({ space: 14 }) {
-          Blank().layoutWeight(1)
-          Button('取消').width(88).height(44).backgroundColor('#ccc').fontColor('#333').fontSize(16).borderRadius(6)
-            .onClick(() => { this.deleteDialogVisible = false })
-          Button('确认删除').width(108).height(44).backgroundColor('#ff4d4f').fontColor('#fff').fontSize(16).borderRadius(6)
-            .onClick(() => this.confirmDelete())
-        }.width('100%')
-      }
-      .width('42%').padding({ left: 28, right: 28, top: 26, bottom: 26 })
-      .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%').height('100%').zIndex(20)
-  }
-  //提示弹框
-  @Builder
-  private renderSuccessDialog() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor('rgba(0,0,0,0.18)')
-        .onClick(() => { this.tipDialogVisible = false })
-
-      Column({ space: 18 }) {
-        Row() {
-          Text('提示')
-            .fontSize(20)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png'))
-              .width(18)
-              .height(18)
-              .objectFit(ImageFit.Contain)
-          }
-          .width(34)
-          .height(34)
-          .padding(0)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 0 })
-          .borderRadius(0)
-          .onClick(() => { this.tipDialogVisible = false })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        // 这里使用动态消息
-        Text(this.tipMessage)
-          .fontSize(17)
-          .fontColor('#333')
-          .width('100%')
-          .textAlign(TextAlign.Center)
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('确定')
-            .width(98)
-            .height(44)
-            .backgroundColor('#44b7ff')
-            .fontColor('#fff')
-            .fontSize(18)
-            .borderRadius(6)
-            .onClick(() => { this.tipDialogVisible = false })
-        }
-        .width('100%')
-        .padding({ top: 4 })
-      }
-      .width('44%')
-      .padding({ left: 28, right: 28, top: 22, bottom: 22 })
-      .backgroundColor('#e6f3ff')
-      .borderRadius(14)
-      .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%')
-    .height('100%')
-    .zIndex(20)
   }
 }
