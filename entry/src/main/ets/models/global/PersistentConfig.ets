@@ -15,8 +15,10 @@ export interface PersistentConfig {
   Gjzl:number,//工件重量（单位：kg）
   StartAngle1:number,//平面一(静平面)初始角度
   StartAngle2:number,//平面二初始角度
+  StartAngleS:number,//静平面初始角度
   NumberP1:number,// 平面一分度数量
   NumberP2:number,//平面二分度数量
+  NumberS:number,//静平面分度数量
   IsReCylinder:number // 0:松开气缸
   SaveDisplayColumnSetting:string //纪录列表自定义列
   jjbc:boolean, //夹具补偿

@@ -32,6 +32,18 @@ export class RotorViewModel {
   selectRotor: string = '';
   currentRotorId: number = 0;
   persistentService = PersistentService.getInstance();
+  //ISO表单字段
+  isoGrade: string = '6.3';
+  isoSpeed: string = '1000';
+  isoWeight: string = '10';
+  isoResult: string = '';
+  //分度设定表单字段
+  indexAngle1: string = '0';
+  indexNumber1: string = '12';
+  indexAngle2: string = '0';
+  indexNumber2: string = '12';
+  indexAngleS: string = '0';
+  indexNumberS: string = '12';
   constructor() {
 
   }
@@ -169,6 +181,7 @@ export class RotorViewModel {
     return false;
   }
 
+ //保存转子
   async saveRotor(): Promise<boolean> {
     try {
       // 自动判断：ID=0 → 新增，否则 → 修改
@@ -193,10 +206,7 @@ export class RotorViewModel {
         if (config) {
           config.lastrotor = this.currentRotorId;
           this.persistentService.setConfig(config);
-          console.log('persistentConfig 保存成功',JSON.stringify(config));
         }
-        const getConfig = this.persistentService.getConfig();
-        console.log('last rotor id',getConfig?.lastrotor);
         return true;
       }else {
         this.errorMessage = resp.message || '保存失败';
@@ -248,7 +258,7 @@ export class RotorViewModel {
   resetForm(): void {
     this.initDefaultValues();
   }
-
+  //加载转子下拉框数据集
   getRotorOptions(): CustomSelectOption[] {
     return this.rotorList.map(rotor => ({
       value: rotor.id,
@@ -256,11 +266,58 @@ export class RotorViewModel {
     } as CustomSelectOption));
   }
 
+  //根据转子名称匹配转子信息
   getRotorIdByName(name: string): number {
     const rotor = this.rotorList.find(r => r.name === name);
     return rotor ? rotor.id : 0;
   }
 
+  //ISO计算
+  calcISO(): void {
+    const isoGrade = parseFloat(this.isoGrade);
+    const isoSpeed = parseFloat(this.isoSpeed);
+    const isoWeight = parseFloat(this.isoWeight);
+    if (isNaN(isoGrade) || isNaN(isoSpeed) || isNaN(isoWeight) || isoSpeed <= 0) {
+      this.isoResult = '请输入有效数值';
+      setTimeout(() => {
+        this.isoResult = '';
+      }, 5000);
+      return;
+    }
+    const r1 = parseFloat(this.rotorR1);
+    const r2 = parseFloat(this.rotorR2);
+    if (r1 != 0 && isoSpeed != 0)
+      this.plane1Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r1).toFixed(3).toString();
+    else
+      this.plane1Allow = "0";
+    if (r2 != 0 && isoSpeed != 0)
+      this.plane2Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r2).toFixed(3).toString();
+    else
+      this.plane2Allow = "0";
+    this.staticAllow = (parseFloat(this.plane1Allow) + parseFloat(this.plane2Allow)).toString();
+
+    this.isoResult = '计算完成';
+    setTimeout(() => {
+      if (this.isoResult === '计算完成') {
+        this.isoResult = '';
+      }
+    }, 5000);
+    return;
+  }
+
+  //分度设定
+   saveIndexSettings(): void {
+     const config = this.persistentService.getConfig();
+     if (config) {
+       config.StartAngle1 = parseInt(this.indexAngle1);
+       config.StartAngle2 = parseInt(this.indexAngle2);
+       config.StartAngleS = parseInt(this.indexAngleS);
+       config.NumberP1 = parseInt(this.indexNumber1);
+       config.NumberP2 = parseInt(this.indexNumber2);
+       config.NumberS  = parseInt(this.indexNumberS);
+       this.persistentService.setConfig(config);
+     }
+  }
   static codeToUnit(code: number): string {
     const map: Record<number, string> = { 1: 'mm', 2: 'cm', 3: 'm', 4: 'inch', 5: 'foot' };
     return map[code] || 'mm';

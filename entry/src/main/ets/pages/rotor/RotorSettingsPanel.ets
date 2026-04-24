@@ -37,22 +37,12 @@ export struct RotorSettingsPanel {
   @State private supportDialogMode: number = 2;
   @State private supportDialogJsms: number = 0;
   @State private indexDialogVisible: boolean = false;
-  @State private indexAngle1: string = '0';
-  @State private indexNumber1: string = '12';
-  @State private indexAngle2: string = '0';
-  @State private indexNumber2: string = '12';
-  @State private indexAngleS: string = '0';
-  @State private indexNumberS: string = '12';
   @State private isoDialogVisible: boolean = false;
-  @State private isoGrade: string = '6.3';
-  @State private isoSpeed: string = '1000';
-  @State private isoWeight: string = '10';
-  @State private isoResult: string = '';
+
   @State private addDialogVisible: boolean = false;
   @State private newRotorName: string = '';
   @State private deleteDialogVisible: boolean = false;
 
-  private readonly CANVAS_EXTEND: number = 90;
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
   private inCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
   private arrowCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -91,17 +81,12 @@ export struct RotorSettingsPanel {
     }
   }
   async loadData(): Promise<void> {
-    console.log('loadData start');
     await this.vm.initAsync();
-    console.log('loadData after initAsync, vm.currentRotorId:', this.vm.currentRotorId);
-    console.log('loadData after initAsync, vm.rotorName:', this.vm.rotorName);
     this.storedSupportMode = this.vm.zcfs;
     this.storedSupportJsms = this.vm.Jsms;
     this.loadMode(this.vm.zcfs);
     this.refreshRotorOptions();
     this.isDataLoaded = true;
-    console.log('loadData end, vm.rotorName:', this.vm.rotorName);
-
   }
 
   private refreshRotorOptions(): void {
@@ -392,46 +377,10 @@ export struct RotorSettingsPanel {
   }
 
   private openISOCalculate(): void {
-    this.isoResult = '';
+    this.vm.isoResult = '';
     this.isoDialogVisible = true;
   }
 
-  private calcISO(): void {
-    const isoGrade = parseFloat(this.isoGrade);
-    const isoSpeed = parseFloat(this.isoSpeed);
-    const isoWeight = parseFloat(this.isoWeight);
-    if (isNaN(isoGrade) || isNaN(isoSpeed) || isNaN(isoWeight) || isoSpeed <= 0) {
-      this.isoResult = '请输入有效数值';
-      setTimeout(() => {
-        this.isoResult = '';
-      }, 5000);
-      return;
-    }
-    const r1 = parseFloat(this.vm.rotorR1);
-    const r2 = parseFloat(this.vm.rotorR2);
-    if (r1 != 0 && isoSpeed != 0)
-      this.vm.plane1Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r1).toFixed(3).toString();
-    else
-      this.vm.plane1Allow = "0";
-    if (r2 != 0 && isoSpeed != 0)
-      this.vm.plane2Allow = (isoGrade * 1000 * 10 / isoSpeed * isoWeight / 2 / r2).toFixed(3).toString();
-    else
-      this.vm.plane2Allow = "0";
-    this.vm.staticAllow = (parseFloat(this.vm.plane1Allow) + parseFloat(this.vm.plane2Allow)).toString();
-
-    this.isoResult = '计算完成';
-    setTimeout(() => {
-      if (this.isoResult === '计算完成') {
-        this.isoResult = '';
-      }
-    }, 5000);
-    return;
-  }
-  private saveIndexSettings(): void {
-    // 这里可以添加保存分度设定的逻辑
-    this.indexDialogVisible = false
-    this.showToast('分度设定已保存')
-  }
   @Builder
   private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
     Column({ space: 2 }) {
@@ -913,49 +862,49 @@ export struct RotorSettingsPanel {
             GridItem() {
               Column({ space: 6 }) {
                 Text('平面1起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexAngle1 }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexAngle1 }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexAngle1 = v })
+                  .onChange((v: string): void => { this.vm.indexAngle1 = v })
               }.alignItems(HorizontalAlign.Start)
             }
             GridItem() {
               Column({ space: 6 }) {
                 Text('平面1分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexNumber1 }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexNumber1 }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexNumber1 = v })
+                  .onChange((v: string): void => { this.vm.indexNumber1 = v })
               }.alignItems(HorizontalAlign.Start)
             }
             GridItem() {
               Column({ space: 6 }) {
                 Text('平面2起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexAngle2 }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexAngle2 }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexAngle2 = v })
+                  .onChange((v: string): void => { this.vm.indexAngle2 = v })
               }.alignItems(HorizontalAlign.Start)
             }
             GridItem() {
               Column({ space: 6 }) {
                 Text('平面2分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexNumber2 }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexNumber2 }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexNumber2 = v })
+                  .onChange((v: string): void => { this.vm.indexNumber2 = v })
               }.alignItems(HorizontalAlign.Start)
             }
             GridItem() {
               Column({ space: 6 }) {
                 Text('静平面起始角度').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexAngleS }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexAngleS }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexAngleS = v })
+                  .onChange((v: string): void => { this.vm.indexAngleS = v })
               }.alignItems(HorizontalAlign.Start)
             }
             GridItem() {
               Column({ space: 6 }) {
                 Text('静平面分度数量').fontSize(15).fontColor('#555')
-                TextInput({ text: this.indexNumberS }).width('100%').height(44).backgroundColor('#ccebff')
+                TextInput({ text: this.vm.indexNumberS }).width('100%').height(44).backgroundColor('#ccebff')
                   .border({ width: 0 }).borderRadius(8).fontSize(15)
-                  .onChange((v: string): void => { this.indexNumberS = v })
+                  .onChange((v: string): void => { this.vm.indexNumberS = v })
               }.alignItems(HorizontalAlign.Start)
             }
           }
@@ -970,7 +919,7 @@ export struct RotorSettingsPanel {
         Row() {
           Blank().layoutWeight(1)
           Button('保存').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => { this.saveIndexSettings() })
+            .onClick(() => { this.vm.saveIndexSettings() })
         }.width('100%').padding({ top: 4 })
       }
       .width('58%')
@@ -1007,34 +956,34 @@ export struct RotorSettingsPanel {
               { value: '0.4' }, { value: '1' }, { value: '2.5' }, { value: '6.3' },
               { value: '16' }, { value: '40' }, { value: '100' }, { value: '250' },
               { value: '630' }, { value: '1600' }, { value: '4000' }
-            ]).value(this.isoGrade).width('100%').height(48).backgroundColor('#ccebff')
+            ]).value(this.vm.isoGrade).width('100%').height(48).backgroundColor('#ccebff')
               .border({ width: 0 }).borderRadius(8).font({ size: 15 })
-              .onSelect((_i: number, v: string): void => { this.isoGrade = v })
+              .onSelect((_i: number, v: string): void => { this.vm.isoGrade = v })
           }.alignItems(HorizontalAlign.Start).width('100%')
 
           Column({ space: 6 }) {
             Text('工作转速 (r/min)').fontSize(15).fontColor('#555')
-            TextInput({ text: this.isoSpeed }).width('100%').height(48).backgroundColor('#ccebff')
+            TextInput({ text: this.vm.isoSpeed }).width('100%').height(48).backgroundColor('#ccebff')
               .border({ width: 0 }).borderRadius(8).fontSize(15)
-              .onChange((v: string): void => { this.isoSpeed = v })
+              .onChange((v: string): void => { this.vm.isoSpeed = v })
           }.alignItems(HorizontalAlign.Start).width('100%')
 
           Column({ space: 6 }) {
             Text('工件重量 (KG)').fontSize(15).fontColor('#555')
-            TextInput({ text: this.isoWeight }).width('100%').height(48).backgroundColor('#ccebff')
+            TextInput({ text: this.vm.isoWeight }).width('100%').height(48).backgroundColor('#ccebff')
               .border({ width: 0 }).borderRadius(8).fontSize(15)
-              .onChange((v: string): void => { this.isoWeight = v })
+              .onChange((v: string): void => { this.vm.isoWeight = v })
           }.alignItems(HorizontalAlign.Start).width('100%')
 
-          if (this.isoResult !== '') {
-            Text(this.isoResult).fontSize(17).fontColor('#0066cc').fontWeight(FontWeight.Medium).padding({ top: 4, bottom: 4 })
+          if (this.vm.isoResult !== '') {
+            Text(this.vm.isoResult).fontSize(17).fontColor('#0066cc').fontWeight(FontWeight.Medium).padding({ top: 4, bottom: 4 })
           }
         }.width('100%')
 
         Row() {
           Blank().layoutWeight(1)
           Button('计算').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => { this.calcISO() })
+            .onClick(() => { this.vm.calcISO() })
         }.width('100%').padding({ top: 4 })
       }
       .width('46%').padding({ left: 28, right: 28, top: 22, bottom: 22 })
