@@ -8,7 +8,7 @@ import { PersistentService } from '../../services/storage/PersistentService';
 export class RotorViewModel {
   private rotorSetApiService: RotorApiService = new RotorApiService();
   rotorsetModel?: RotorSetModel;
-  errorMessage: string = '';  // 提示文字
+  tipMessage: string = '';  // 提示文字
   operateType: number = 0;
   rotorList: RotorSetModel[] = [];
   // 表单字段（用于双向绑定）
@@ -36,7 +36,6 @@ export class RotorViewModel {
   isoGrade: string = '6.3';
   isoSpeed: string = '1000';
   isoWeight: string = '10';
-  isoResult: string = '';
   //分度设定表单字段
   indexAngle1: string = '0';
   indexNumber1: string = '12';
@@ -84,7 +83,7 @@ export class RotorViewModel {
     this.yxldw = 'g';
     this.currentRotorId = 0;
     this.selectRotor = '';
-    this.errorMessage = '';
+    this.tipMessage = '';
   }
   // 从模型填充表单
   private fillFormFromModel(model: RotorSetModel): void {
@@ -141,16 +140,15 @@ export class RotorViewModel {
     try {
       const resp = await this.rotorSetApiService.GetRotorList();
       if (resp.success && resp.respData) {
-        this.rotorList = resp.respData;
-        console.log('loadRotorList success, count:', this.rotorList.length, 'data:', JSON.stringify(this.rotorList));
+        this.rotorList = resp.respData.sort((a, b) => a.id - b.id);
         return true;
       }
-      this.errorMessage = resp.message || '加载转子列表失败';
+      this.tipMessage = resp.message || '加载转子列表失败';
       console.error('loadRotorList failed:', resp.message);
       return false;
     } catch (e) {
       console.error('加载转子列表异常：', e);
-      this.errorMessage = '网络异常，请检查服务是否启动';
+      this.tipMessage = '网络异常，请检查服务是否启动';
       return false;
     }
   }
@@ -165,11 +163,11 @@ export class RotorViewModel {
         this.fillFormFromModel(resp.respData);
         return true;
       }
-      this.errorMessage = resp.message || '加载转子失败';
+      this.tipMessage = resp.message || '加载转子失败';
       return false;
     } catch (e) {
       console.error('加载转子失败：', e);
-      this.errorMessage = '网络异常，请检查服务是否启动';
+      this.tipMessage = '网络异常，请检查服务是否启动';
       return false;
     }
   }
@@ -207,15 +205,16 @@ export class RotorViewModel {
           config.lastrotor = this.currentRotorId;
           this.persistentService.setConfig(config);
         }
+        this.tipMessage = "保存成功";
         return true;
       }else {
-        this.errorMessage = resp.message || '保存失败';
+        this.tipMessage = resp.message || '保存失败';
         return false;
       }
 
     } catch (e) {
       console.error('保存异常：', e);
-      this.errorMessage = '网络异常，保存失败';
+      this.tipMessage = '网络异常，保存失败';
       return false;
     }
   }
@@ -223,11 +222,11 @@ export class RotorViewModel {
   // 删除转子
   async deleteRotor(): Promise<boolean> {
     if (this.currentRotorId === 0) {
-      this.errorMessage = '请先选择要删除的转子';
+      this.tipMessage = '请先选择要删除的转子';
       return false;
     }
     if(this.rotorList.length == 1){
-      this.errorMessage = '当前只有一个转子，不允许删除';
+      this.tipMessage = '当前只有一个转子，不允许删除';
       return false;
     }
     try {
@@ -245,11 +244,11 @@ export class RotorViewModel {
         }
         return true;
       }
-      this.errorMessage = resp.message || '删除失败';
+      this.tipMessage = resp.message || '删除失败';
       return false;
     } catch (e) {
       console.error('删除异常：', e);
-      this.errorMessage = '网络异常，删除失败';
+      this.tipMessage = '网络异常，删除失败';
       return false;
     }
   }
@@ -278,10 +277,7 @@ export class RotorViewModel {
     const isoSpeed = parseFloat(this.isoSpeed);
     const isoWeight = parseFloat(this.isoWeight);
     if (isNaN(isoGrade) || isNaN(isoSpeed) || isNaN(isoWeight) || isoSpeed <= 0) {
-      this.isoResult = '请输入有效数值';
-      setTimeout(() => {
-        this.isoResult = '';
-      }, 5000);
+      this.tipMessage = '请输入有效数值';
       return;
     }
     const r1 = parseFloat(this.rotorR1);
@@ -295,13 +291,7 @@ export class RotorViewModel {
     else
       this.plane2Allow = "0";
     this.staticAllow = (parseFloat(this.plane1Allow) + parseFloat(this.plane2Allow)).toString();
-
-    this.isoResult = '计算完成';
-    setTimeout(() => {
-      if (this.isoResult === '计算完成') {
-        this.isoResult = '';
-      }
-    }, 5000);
+    this.tipMessage = '计算完成';
     return;
   }
 
@@ -316,6 +306,7 @@ export class RotorViewModel {
        config.NumberP2 = parseInt(this.indexNumber2);
        config.NumberS  = parseInt(this.indexNumberS);
        this.persistentService.setConfig(config);
+       this.tipMessage = '保存成功';
      }
   }
   static codeToUnit(code: number): string {

@@ -42,6 +42,8 @@ export struct RotorSettingsPanel {
   @State private addDialogVisible: boolean = false;
   @State private newRotorName: string = '';
   @State private deleteDialogVisible: boolean = false;
+  @State private tipDialogVisible: boolean = false; // 成功提示弹窗
+  @State private tipMessage: string = ""; // 提示弹框内容
 
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
   private inCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -249,31 +251,22 @@ export struct RotorSettingsPanel {
     ctx.restore();
   }
 
+  //保存
   private saveSettings(): void {
     this.vm.saveRotor().then(ok => {
-      this.refreshRotorOptions();
       if (ok) {
+        this.refreshRotorOptions();
         this.storedSupportMode = this.vm.zcfs;
         this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
-
-         promptAction.showDialog({
-            title: '提示',
-            message: '                           保存成功    ',
-           buttons: [
-              { text: '确定', color: '#007AFF' }
-            ]
-          });
-        //this.showToast('保存成功');
-      } else {
-        promptAction.showToast({ message: this.vm.errorMessage });
       }
+      this.showSuccessDialog(this.vm.tipMessage);
     });
   }
   private deleteRotor(): void {
     this.deleteDialogVisible = true;
   }
-
+  //新增
   private addRotor(): void {
     // 清空 ViewModel 数据
     this.vm.resetForm();
@@ -284,18 +277,19 @@ export struct RotorSettingsPanel {
     this.refreshRotorOptions();
     setTimeout(() => {
       this.isDataLoaded = true;
-      this.showToast('已新建转子，请输入参数后保存');
+      this.showSuccessDialog('已重置转子表单，请输入参数后保存');
     }, 50);
   }
 
+  //确认删除
   private confirmDelete(): void {
     this.deleteDialogVisible = false;
     this.vm.deleteRotor().then(ok => {
       this.refreshRotorOptions();
       if (!ok) {
-        this.showToast(this.vm.errorMessage);
+        this.showSuccessDialog(this.vm.tipMessage);
       } else {
-        this.showToast('转子已删除');
+        this.showSuccessDialog('转子已删除');
         this.storedSupportMode = this.vm.zcfs;
         this.storedSupportJsms = this.vm.Jsms;
         this.loadMode(this.vm.zcfs);
@@ -305,13 +299,13 @@ export struct RotorSettingsPanel {
 
   private confirmAddRotor(): void {
     if (this.newRotorName.trim().length === 0) {
-      this.showToast('请输入转子名称');
+      this.showSuccessDialog('请输入转子名称');
       return;
     }
     this.vm.rotorName = this.newRotorName;
     this.vm.selectRotor = this.newRotorName;
     this.addDialogVisible = false;
-    this.showToast('新增转子成功，请点击保存');
+    this.showSuccessDialog('新增转子成功，请点击保存');
   }
 
   private openSupportWindow(): void {
@@ -330,14 +324,6 @@ export struct RotorSettingsPanel {
     this.storedSupportJsms = this.supportDialogJsms;
     this.loadMode(this.supportDialogMode);
     this.supportDialogVisible = false;
-  }
-
-  private showToast(message: string, duration: number = 1200): void {
-    try {
-      this.getUIContext().getPromptAction().showToast({ message, duration });
-    } catch (error) {
-      console.error(`showToast failed: ${JSON.stringify(error)}`);
-    }
   }
 
   private getFilteredSupportModes(): number[] {
@@ -377,10 +363,14 @@ export struct RotorSettingsPanel {
   }
 
   private openISOCalculate(): void {
-    this.vm.isoResult = '';
+    this.vm.tipMessage = '';
     this.isoDialogVisible = true;
   }
-
+  // 显示成功弹窗（可传消息）
+  private showSuccessDialog(message: string): void {
+    this.tipMessage = message;
+    this.tipDialogVisible = true;
+  }
   @Builder
   private renderParamInput(label: string, value: string, onChange: (v: string) => void, pos: Margin) {
     Column({ space: 2 }) {
@@ -773,6 +763,9 @@ export struct RotorSettingsPanel {
       if (this.deleteDialogVisible) {
         this.renderDeleteDialog()
       }
+      if (this.tipDialogVisible) {
+        this.renderSuccessDialog()
+      }
     }
     .width('100%')
     .height('100%')
@@ -919,7 +912,11 @@ export struct RotorSettingsPanel {
         Row() {
           Blank().layoutWeight(1)
           Button('保存').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => { this.vm.saveIndexSettings() })
+            .onClick(() => {
+              this.vm.saveIndexSettings();
+              this.indexDialogVisible = false; // 关闭弹窗
+              this.showSuccessDialog("保存成功");
+            })
         }.width('100%').padding({ top: 4 })
       }
       .width('58%')
@@ -975,15 +972,19 @@ export struct RotorSettingsPanel {
               .onChange((v: string): void => { this.vm.isoWeight = v })
           }.alignItems(HorizontalAlign.Start).width('100%')
 
-          if (this.vm.isoResult !== '') {
-            Text(this.vm.isoResult).fontSize(17).fontColor('#0066cc').fontWeight(FontWeight.Medium).padding({ top: 4, bottom: 4 })
-          }
+         /* if (this.vm.tipMessage !== '') {
+            Text(this.vm.tipMessage).fontSize(17).fontColor('#0066cc').fontWeight(FontWeight.Medium).padding({ top: 4, bottom: 4 })
+          }*/
         }.width('100%')
 
         Row() {
           Blank().layoutWeight(1)
           Button('计算').width(98).height(44).backgroundColor('#44b7ff').fontColor('#fff').fontSize(18).borderRadius(6)
-            .onClick(() => { this.vm.calcISO() })
+            .onClick(() => {
+              this.vm.calcISO()
+              this.isoDialogVisible = false;
+              this.showSuccessDialog(this.vm.tipMessage);
+            })
         }.width('100%').padding({ top: 4 })
       }
       .width('46%').padding({ left: 28, right: 28, top: 22, bottom: 22 })
@@ -1049,5 +1050,70 @@ export struct RotorSettingsPanel {
       .backgroundColor('#e6f3ff').borderRadius(14).shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
     }
     .width('100%').height('100%').zIndex(20)
+  }
+  //提示弹框
+  @Builder
+  private renderSuccessDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0,0,0,0.18)')
+        .onClick(() => { this.tipDialogVisible = false })
+
+      Column({ space: 18 }) {
+        Row() {
+          Text('提示')
+            .fontSize(20)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#333')
+          Blank().layoutWeight(1)
+          Button() {
+            Image($rawfile('image/login/icon_close.png'))
+              .width(18)
+              .height(18)
+              .objectFit(ImageFit.Contain)
+          }
+          .width(34)
+          .height(34)
+          .padding(0)
+          .backgroundColor(Color.Transparent)
+          .border({ width: 0 })
+          .borderRadius(0)
+          .onClick(() => { this.tipDialogVisible = false })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        // 这里使用动态消息
+        Text(this.tipMessage)
+          .fontSize(17)
+          .fontColor('#333')
+          .width('100%')
+          .textAlign(TextAlign.Center)
+
+        Row() {
+          Blank().layoutWeight(1)
+          Button('确定')
+            .width(98)
+            .height(44)
+            .backgroundColor('#44b7ff')
+            .fontColor('#fff')
+            .fontSize(18)
+            .borderRadius(6)
+            .onClick(() => { this.tipDialogVisible = false })
+        }
+        .width('100%')
+        .padding({ top: 4 })
+      }
+      .width('44%')
+      .padding({ left: 28, right: 28, top: 22, bottom: 22 })
+      .backgroundColor('#e6f3ff')
+      .borderRadius(14)
+      .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(20)
   }
 }
