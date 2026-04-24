@@ -4,3 +4,4 @@
 .vcs.xml
 *.name
 /.qoder
+/entry/src/main/ets/utils/PersistentConfigUsageExample.ets
