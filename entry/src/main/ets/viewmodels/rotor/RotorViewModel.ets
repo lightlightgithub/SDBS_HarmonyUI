@@ -111,6 +111,17 @@ export class RotorViewModel {
     this.Clms = model.clms;
     this.measureMode = model.clms === 1 ? '单面动平衡' : model.clms === 2 ? '双面动平衡' : '动静平衡';
     this.rotorsetModel = model;
+    //分度设定
+    const config = this.persistentService.getConfig();
+    console.log('config',JSON.stringify(config));
+    if(config){
+      this.indexAngle1 = config.startAngle1?.toString() || '0';
+      this.indexNumber1 = config.numberP1?.toString() || '12';
+      this.indexAngle2 = config.startAngle2.toString();
+      this.indexNumber2 = config.numberP2.toString();
+      this.indexAngleS = config.startAngleS.toString();
+      this.indexNumberS = config.numberS.toString();
+    }
   }
   // 构建模型（用于提交
   private buildModel(): RotorSetModel {
@@ -299,12 +310,12 @@ export class RotorViewModel {
    saveIndexSettings(): void {
      const config = this.persistentService.getConfig();
      if (config) {
-       config.StartAngle1 = parseInt(this.indexAngle1);
-       config.StartAngle2 = parseInt(this.indexAngle2);
-       config.StartAngleS = parseInt(this.indexAngleS);
-       config.NumberP1 = parseInt(this.indexNumber1);
-       config.NumberP2 = parseInt(this.indexNumber2);
-       config.NumberS  = parseInt(this.indexNumberS);
+       config.startAngle1 = parseInt(this.indexAngle1);
+       config.startAngle2 = parseInt(this.indexAngle2);
+       config.startAngleS = parseInt(this.indexAngleS);
+       config.numberP1 = parseInt(this.indexNumber1);
+       config.numberP2 = parseInt(this.indexNumber2);
+       config.numberS  = parseInt(this.indexNumberS);
        this.persistentService.setConfig(config);
        this.tipMessage = '保存成功';
      }
