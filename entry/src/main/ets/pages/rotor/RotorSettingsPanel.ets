@@ -1,8 +1,11 @@
+// RotorSettingsPanel.ets - 完整修改版
+
 import { SupportConfig, MeasurementMode, Margin, SelectOption } from './RotorSupportConfig';
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
 import {
-  SupportDialog, IndexDialog, ISODialog, DeleteDialog, TipDialog
+  SupportDialog, IndexDialog, ISODialog, DeleteDialog
 } from './RotorDialogs';
+import { GlobalTip, GlobalTipManager, showTip } from '../../components/common/GlobalTip';  // 导入全局提示
 
 @Component
 export struct RotorSettingsPanel {
@@ -34,13 +37,16 @@ export struct RotorSettingsPanel {
   // 转子选项
   @State private rotorSelectOptions: SelectOption[] = [];
   private rotorNameToIdMap: Map<string, number> = new Map();
-  // 弹窗状态
+  // 弹窗状态（移除了 tipDialogVisible）
   @State private supportDialogVisible: boolean = false;
   @State private indexDialogVisible: boolean = false;
   @State private isoDialogVisible: boolean = false;
   @State private deleteDialogVisible: boolean = false;
-  @State private tipDialogVisible: boolean = false;
+
+  // 全局提示相关状态
+  @State private tipVisible: boolean = false;
   @State private tipMessage: string = '';
+  private tipManager: GlobalTipManager = GlobalTipManager.getInstance();
 
   private mainCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
   private inCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -63,6 +69,12 @@ export struct RotorSettingsPanel {
   private allowUnitOptions: SelectOption[] = [{ value: 'g' }, { value: 'mg' }, { value: 'g·mm' }, { value: 'g·cm' }];
 
   aboutToAppear(): void {
+    // 注册提示回调
+    this.tipManager.setUpdateCallback((visible: boolean, message: string) => {
+      this.tipVisible = visible;
+      this.tipMessage = message;
+    });
+
     SupportConfig.init();
     if (this.vm.currentRotorId !== 0 && this.vm.rotorList.length > 0) {
       this.loadMode(this.vm.zcfs);
@@ -243,7 +255,12 @@ export struct RotorSettingsPanel {
         this.refreshRotorOptions();
         this.loadMode(this.vm.zcfs);
       }
-      this.showTip(this.vm.tipMessage);
+      // 使用全局提示
+      if (this.vm.tipMessage) {
+        showTip(this.vm.tipMessage);
+      } else {
+        showTip(ok ? '保存成功' : '保存失败');
+      }
     });
   }
 
@@ -258,7 +275,7 @@ export struct RotorSettingsPanel {
     this.refreshRotorOptions();
     setTimeout(() => {
       this.isDataLoaded = true;
-      this.showTip('已重置转子表单，请输入参数后保存');
+      showTip('已重置转子表单，请输入参数后保存');
     }, 50);
   }
 
@@ -267,9 +284,9 @@ export struct RotorSettingsPanel {
     this.vm.deleteRotor().then(ok => {
       this.refreshRotorOptions();
       if (!ok) {
-        this.showTip(this.vm.tipMessage);
+        showTip(this.vm.tipMessage || '删除失败');
       } else {
-        this.showTip('转子已删除');
+        showTip('转子已删除');
         this.loadMode(this.vm.zcfs);
       }
     });
@@ -284,17 +301,7 @@ export struct RotorSettingsPanel {
   }
 
   private openISOCalculate(): void {
-    this.vm.tipMessage = '';
     this.isoDialogVisible = true;
-  }
-
-  private showTip(message: string): void {
-    this.tipMessage = message;
-    this.tipDialogVisible = true;
-  }
-
-  private closeTip(): void {
-    this.tipDialogVisible = false;
   }
 
   @Builder
@@ -597,8 +604,6 @@ export struct RotorSettingsPanel {
           initialMode: this.vm.zcfs,
           initialJsms: this.vm.Jsms,
           onConfirm: (mode: number, jsms: number) => {
-            // 直接更新 ViewModel
-            console.log('SupportDialog mode',mode);
             this.vm.zcfs = mode;
             this.vm.Jsms = jsms;
             this.vm.balanceMode = jsms === 0 ? '硬支撑' : '软支撑';
@@ -613,20 +618,14 @@ export struct RotorSettingsPanel {
       if (this.indexDialogVisible) {
         IndexDialog({
           vm: this.vm,
-          onClose: () => {
-            this.indexDialogVisible = false;
-            this.showTip("保存成功");
-          }
+          onClose: () => this.indexDialogVisible = false
         })
       }
 
       if (this.isoDialogVisible) {
         ISODialog({
           vm: this.vm,
-          onClose: () => {
-            this.isoDialogVisible = false;
-            this.showTip(this.vm.tipMessage);
-          }
+          onClose: () => this.isoDialogVisible = false
         })
       }
 
@@ -637,10 +636,13 @@ export struct RotorSettingsPanel {
         })
       }
 
-      if (this.tipDialogVisible) {
-        TipDialog({
+      // 全局提示弹窗
+      if (this.tipVisible) {
+        GlobalTip({
           message: this.tipMessage,
-          onClose: () => this.closeTip()
+          onClose: () => {
+            this.tipManager.hide();
+          }
         })
       }
     }

@@ -1,6 +1,7 @@
 import { RotorViewModel } from '../../viewmodels/rotor/RotorViewModel';
+import { showTip } from '../../components/common/GlobalTip';
 
-// 支撑方式弹窗 - 使用回调模式，只负责接收和返回数据
+// 支撑方式、ISO计算、分度设定、删除 弹窗
 @Component
 export struct SupportDialog {
   @Prop initialMode: number = 2;
@@ -311,6 +312,7 @@ export struct IndexDialog {
             .onClick(() => {
               this.vm.saveIndexSettings();
               this.onClose?.();
+              showTip("分度设定保存成功");
             })
         }
         .width('100%')
@@ -423,6 +425,7 @@ export struct ISODialog {
             .onClick(() => {
               this.vm.calcISO();
               this.onClose?.();
+              showTip(this.vm.tipMessage);
             })
         }
         .width('100%')
@@ -488,76 +491,6 @@ export struct DeleteDialog {
       }
       .width('42%')
       .padding({ left: 28, right: 28, top: 26, bottom: 26 })
-      .backgroundColor('#e6f3ff')
-      .borderRadius(14)
-      .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
-    }
-    .width('100%')
-    .height('100%')
-    .zIndex(20)
-  }
-}
-
-// 提示弹窗
-@Component
-export struct TipDialog {
-  @Prop message: string = '';
-  onClose?: () => void;
-
-  build() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor('rgba(0,0,0,0.18)')
-        .onClick(() => this.onClose?.())
-
-      Column({ space: 18 }) {
-        Row() {
-          Text('提示')
-            .fontSize(20)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#333')
-          Blank().layoutWeight(1)
-          Button() {
-            Image($rawfile('image/login/icon_close.png'))
-              .width(18)
-              .height(18)
-              .objectFit(ImageFit.Contain)
-          }
-          .width(34)
-          .height(34)
-          .padding(0)
-          .backgroundColor(Color.Transparent)
-          .border({ width: 0 })
-          .borderRadius(0)
-          .onClick(() => this.onClose?.())
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-
-        Text(this.message)
-          .fontSize(17)
-          .fontColor('#333')
-          .width('100%')
-          .textAlign(TextAlign.Center)
-
-        Row() {
-          Blank().layoutWeight(1)
-          Button('确定')
-            .width(98)
-            .height(44)
-            .backgroundColor('#44b7ff')
-            .fontColor('#fff')
-            .fontSize(18)
-            .borderRadius(6)
-            .onClick(() => this.onClose?.())
-        }
-        .width('100%')
-        .padding({ top: 4 })
-      }
-      .width('44%')
-      .padding({ left: 28, right: 28, top: 22, bottom: 22 })
       .backgroundColor('#e6f3ff')
       .borderRadius(14)
       .shadow({ radius: 20, color: 'rgba(0,0,0,0.18)', offsetX: 0, offsetY: 8 })
